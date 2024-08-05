@@ -41,7 +41,10 @@
           @update:modelValue="handleTabChange"
         />
       </div>
-      <div class="ap-page-card__content">
+      <div
+        class="ap-page-card__content"
+        :class="{ 'ap-page-card__content--bg': bodyBg }"
+      >
         <slot />
       </div>
     </el-card>
@@ -69,6 +72,7 @@ const props = withDefaults(
     defaultTab?: string;
     cardStyle?: string;
     hFull?: boolean;
+    bodyBg?: boolean;
     ignorePaddingTop?: boolean;
     ignorePaddingBottom?: boolean;
     ignorePaddingLeft?: boolean;
@@ -236,6 +240,10 @@ function handleTabChange(tab: Tab["name"]) {
 
     &__content {
       @apply px-[var(--ap-page-card-padding-x)] py-[var(--ap-page-card-padding-y)];
+
+      @include m(bg) {
+        background-color: var(--el-color-white);
+      }
     }
 
     &__outer-tabs {

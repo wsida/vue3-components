@@ -25,7 +25,10 @@ export default defineComponent({
     const listProps = inject(Symbol.for("ap-list-props")) as ReListProvide;
 
     const itemClassName = computed<string[]>(() => {
-      const className = [prefixClassName];
+      const className = [
+        prefixClassName,
+        `${prefixClassName}--${unref(listProps).itemLayout}`
+      ];
       if (unref(listProps).rowClassName) {
         className.push(unref(listProps).rowClassName);
       }
@@ -79,7 +82,7 @@ export default defineComponent({
         ? isUndefined(normalizeItemMetas.value["avatar"]["render"])
           ? () => {
               const avatarProps: Record<string, any> = {
-                size: 48,
+                size: unref(listProps).itemLayout === "horizontal" ? 48 : 72,
                 fit: "fill",
                 shape: "square",
                 alt: "图片"
@@ -95,7 +98,12 @@ export default defineComponent({
               }
               bindNormalProps(avatarProps, normalizeItemMetas.value["avatar"]);
               return (
-                <div class="ap-list-card-item__avatar">
+                <div
+                  class={[
+                    "ap-list-card-item__avatar",
+                    `ap-list-card-item__avatar--${unref(listProps).avatarPosition}`
+                  ]}
+                >
                   <el-avatar {...avatarProps} />
                 </div>
               );
@@ -177,7 +185,75 @@ export default defineComponent({
       const contentVnode = renderContent.value ? renderContent.value() : null;
       const actionsVnode = renderActions.value ? renderActions.value() : null;
 
-      return (
+      return unref(listProps).itemLayout === "horizontal" ? (
+        unref(listProps).avatarPosition === "right" ? (
+          <div ref={itemRef} class={itemClassName.value}>
+            <div class="ap-list-card-item__group flex-col flex-1">
+              <div
+                class={[
+                  "ap-list-card-item__group",
+                  "flex-col",
+                  "flex-1",
+                  unref(listProps).actionPosition === "card-footer" && "px-4",
+                  unref(listProps).actionPosition === "card-footer" && "pb-3"
+                ]}
+              >
+                <div class="ap-list-card-item__group flex-row items-center">
+                  <div class="ap-list-card-item__group flex-row flex-1">
+                    {titleVnode}
+                    {subTitleVnode}
+                  </div>
+                  {unref(listProps).actionPosition !== "card-footer" &&
+                    actionsVnode}
+                </div>
+                <div class="ap-list-card-item__group flex-row items-center">
+                  <div class="ap-list-card-item__group flex-col flex-1">
+                    {contentVnode}
+                    {descriptionVnode}
+                  </div>
+                  {avatarVnode}
+                </div>
+              </div>
+              {unref(listProps).actionPosition === "card-footer" &&
+                actionsVnode}
+            </div>
+          </div>
+        ) : (
+          <div ref={itemRef} class={itemClassName.value}>
+            <div class="ap-list-card-item__group flex-col flex-1">
+              <div
+                class={[
+                  "ap-list-card-item__group",
+                  "flex-col",
+                  "flex-1",
+                  unref(listProps).actionPosition === "card-footer" && "px-4",
+                  unref(listProps).actionPosition === "card-footer" && "pb-3"
+                ]}
+              >
+                <div class="ap-list-card-item__group flex-row items-start">
+                  {avatarVnode}
+                  <div class="ap-list-card-item__group flex-col flex-1">
+                    <div class="ap-list-card-item__group flex-row items-center">
+                      <div class="ap-list-card-item__group flex-row flex-1">
+                        {titleVnode}
+                        {subTitleVnode}
+                      </div>
+                      {unref(listProps).actionPosition !== "card-footer" &&
+                        actionsVnode}
+                    </div>
+                    <div class="ap-list-card-item__group flex-col flex-1">
+                      {contentVnode}
+                      {descriptionVnode}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {unref(listProps).actionPosition === "card-footer" &&
+                actionsVnode}
+            </div>
+          </div>
+        )
+      ) : (
         <div ref={itemRef} class={itemClassName.value}>
           <div class="ap-list-card-item__group flex-col flex-1">
             <div
@@ -189,21 +265,17 @@ export default defineComponent({
                 unref(listProps).actionPosition === "card-footer" && "pb-3"
               ]}
             >
-              <div class="ap-list-card-item__group flex-row items-center">
-                <div class="ap-list-card-item__group flex-row flex-1">
-                  {titleVnode}
-                  {subTitleVnode}
-                </div>
-                {unref(listProps).actionPosition !== "card-footer" &&
-                  actionsVnode}
-              </div>
-              <div class="ap-list-card-item__group flex-row items-center">
-                <div class="ap-list-card-item__group flex-col flex-1">
-                  {contentVnode}
-                  {descriptionVnode}
-                </div>
+              <div class="ap-list-card-item__group flex-row justify-center">
                 {avatarVnode}
               </div>
+              <div class="ap-list-card-item__group flex-row flex-1">
+                {titleVnode}
+                {subTitleVnode}
+              </div>
+              {contentVnode}
+              {descriptionVnode}
+              {unref(listProps).actionPosition !== "card-footer" &&
+                actionsVnode}
             </div>
             {unref(listProps).actionPosition === "card-footer" && actionsVnode}
           </div>
@@ -217,6 +289,40 @@ export default defineComponent({
 <style lang="scss">
 .ap-list-card-item {
   @apply relative flex py-3 px-4 overflow-hidden bg-white border-[var(--el-border-color-light)] border-[1px] border-solid;
+
+  @include m(vertical) {
+    .ap-list-card-item {
+      &__avatar {
+        @apply mb-3 min-w-full text-center;
+
+        .el-avatar {
+          @apply w-full;
+        }
+      }
+
+      &__actions {
+        @apply mt-3;
+      }
+    }
+  }
+
+  @include m(horizontal) {
+    .ap-list-card-item {
+      &__avatar {
+        @include m(left) {
+          @apply mr-4;
+        }
+
+        @include m(right) {
+          @apply mr-4;
+        }
+      }
+
+      &__actions {
+        @apply ml-4;
+      }
+    }
+  }
 
   @include m(hover) {
     &:hover {
@@ -237,7 +343,7 @@ export default defineComponent({
 
     .ap-list-card-item {
       &__actions {
-        @apply px-4 flex flex-row items-center justify-around min-h-[var(--ap-list-footer-actions-min-height)] border-t-[var(--el-border-color-light)] border-t-[1px] border-solid;
+        @apply m-0 px-4 flex flex-row items-center justify-around min-h-[var(--ap-list-footer-actions-min-height)] border-t-[var(--el-border-color-light)] border-t-[1px] border-solid;
       }
     }
   }
@@ -253,7 +359,7 @@ export default defineComponent({
   }
 
   &__avatar {
-    @apply ml-4 flex-shrink-0;
+    @apply flex-shrink-0;
   }
 
   &__title {

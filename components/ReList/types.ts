@@ -27,6 +27,7 @@ export interface ReListProps {
   gutter?: number | [number] | [number, number];
   type?: "card" | "list";
   actionPosition?: "default" | "card-footer";
+  avatarPosition?: "left" | "right";
   avatarHideInExpanded?: boolean;
   itemLayout?: "vertical" | "horizontal";
   items?: Record<string, any>[];

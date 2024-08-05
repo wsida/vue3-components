@@ -60,7 +60,8 @@ const props = withDefaults(defineProps<ReListProps>(), {
   ghost: false,
   grid: 1,
   gutter: 16,
-  actionPosition: "default"
+  actionPosition: "default",
+  avatarPosition: "left"
 });
 
 const emits = defineEmits<{
@@ -159,7 +160,8 @@ provide(
     expandable: props.expandable,
     checkable: props.checkable,
     itemLayout: props.itemLayout,
-    actionPosition: props.actionPosition
+    actionPosition: props.actionPosition,
+    avatarPosition: props.avatarPosition
   }))
 );
 </script>
