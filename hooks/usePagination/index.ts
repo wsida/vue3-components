@@ -61,7 +61,7 @@ export default function usePagination(
   watch(
     () => unref(props)[dataKey],
     () => {
-      if (!unref(props).remote) {
+      if (!unref(props).remote && unref(props).resetCurrentPage) {
         currentPage.value = 1;
         emits("update:currentPage", 1);
       }

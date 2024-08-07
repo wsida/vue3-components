@@ -154,6 +154,7 @@ provide(
     listRef: listRef.value,
     rowClassName: props.rowClassName,
     modelValue: checks.value,
+    itemHeight: props.itemHeight,
     avatarHideInExpanded: props.avatarHideInExpanded,
     rowKey: props.rowKey,
     hover: props.hover,

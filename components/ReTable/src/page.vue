@@ -186,22 +186,29 @@
       :gutter="tableGutter"
       :size="tableSize"
       v-bind="$attrs"
-    />
+    >
+      <!--插槽传递-->
+      <template v-if="$slots.empty" #empty>
+        <slot name="empty" />
+      </template>
+      <template v-for="slotName in slotsNames" #[slotName]="slotScoped">
+        <slot :name="slotName" v-bind="slotScoped" />
+      </template>
+    </ReTable>
   </div>
 </template>
 <script setup lang="ts">
 import ReTable from "./main.vue";
 import RePageTableSettingPopover from "./children/setting-popover.vue";
 import { unref, ref, computed, useAttrs } from "vue";
-import { ReTableColumn } from "../types";
-import { isUndefined } from "lodash-es";
+import { isUndefined, isFunction } from "lodash-es";
 import type {
+  ReTableColumn,
   RePageTableProps,
   RePageTableColumn,
   RePageTableEmits
 } from "../types";
 import { ElButton, ClickOutside as vClickOutside } from "element-plus";
-import { isFunction } from "lodash-es";
 import { useFullscreen } from "@vueuse/core";
 import Refresh from "@iconify-icons/ri/refresh-line";
 import FontSize from "@iconify-icons/ri/font-size";
@@ -213,6 +220,8 @@ defineOptions({
   name: "RePageTable",
   inheritAttrs: false
 });
+
+type SettingColumn = Pick<RePageTableColumn, "label" | "prop">;
 
 const props = withDefaults(defineProps<RePageTableProps>(), {
   defaultGutter: "default",
@@ -240,11 +249,12 @@ const defaultShowColumns: string[] = props.columns
   )
   .map((column: RePageTableColumn) => column.prop);
 
-const defaultSettingColumns: Array<{ label: string; prop: string }> =
-  props.columns.map((column: RePageTableColumn) => ({
+const defaultSettingColumns: Array<SettingColumn> = props.columns.map(
+  (column: RePageTableColumn) => ({
     label: column.label,
     prop: column.prop
-  }));
+  })
+);
 
 const emits = defineEmits<RePageTableEmits>();
 
@@ -266,13 +276,9 @@ const fixedColumns = computed<string[]>(() =>
     .map((column: RePageTableColumn) => column.prop)
 );
 
-console.log($attrs);
-
 // 当前展示的列
 const showColumns = ref<string[]>([...defaultShowColumns]);
-const settingColumns = ref<Array<{ label: string; prop: string }>>([
-  ...defaultSettingColumns
-]);
+const settingColumns = ref<Array<SettingColumn>>([...defaultSettingColumns]);
 
 const fullscreenTarget = computed(() =>
   props.fullscreenTarget
@@ -284,9 +290,14 @@ const fullscreenTarget = computed(() =>
 const { isFullscreen, enter, exit } = useFullscreen(fullscreenTarget);
 
 const localColumns = computed<ReTableColumn[]>(() => {
-  let columns = settingColumns.value.filter((column: RePageTableColumn) =>
-    showColumns.value.includes(column.prop)
-  );
+  let columns: RePageTableColumn[] = settingColumns.value
+    .filter((column: SettingColumn) => showColumns.value.includes(column.prop))
+    .map((column: SettingColumn) => {
+      const actualColumn = props.columns.find(
+        (item: RePageTableColumn) => item.prop === column.prop
+      );
+      return actualColumn || column;
+    });
 
   if (resizable.value) {
     columns = columns.map((column: RePageTableColumn) => {
@@ -301,6 +312,22 @@ const localColumns = computed<ReTableColumn[]>(() => {
   }
 
   return columns;
+});
+
+const slotsNames = computed(() => {
+  const slotsNames = [];
+  for (const column of localColumns.value) {
+    if (!isUndefined(column.slot)) {
+      slotsNames.push(column.slot);
+    }
+    if (!isUndefined(column.filterIconSlot)) {
+      slotsNames.push(column.filterIconSlot);
+    }
+    if (!isUndefined(column.headerSlot)) {
+      slotsNames.push(column.headerSlot);
+    }
+  }
+  return slotsNames;
 });
 
 // 全屏

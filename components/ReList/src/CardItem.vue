@@ -4,7 +4,13 @@ import { defineComponent, inject, computed, ref, unref, PropType } from "vue";
 import { DEFAULT_LIST_ITEM_METAS } from "../constants";
 import useTitleEllipsis from "./useTitleEllipsis";
 import { getRenderFunction, bindNormalProps } from "./utils";
-import { cloneDeep, isString, isObject, isUndefined } from "lodash-es";
+import {
+  cloneDeep,
+  isString,
+  isNumber,
+  isObject,
+  isUndefined
+} from "lodash-es";
 import type {
   ReListItemProps,
   ReListItemMetas,
@@ -184,10 +190,14 @@ export default defineComponent({
         : null;
       const contentVnode = renderContent.value ? renderContent.value() : null;
       const actionsVnode = renderActions.value ? renderActions.value() : null;
+      const itemHeight = unref(listProps).itemHeight;
+      const itemStyles = itemHeight
+        ? { maxHeight: isNumber(itemHeight) ? `${itemHeight}px` : itemHeight }
+        : {};
 
       return unref(listProps).itemLayout === "horizontal" ? (
         unref(listProps).avatarPosition === "right" ? (
-          <div ref={itemRef} class={itemClassName.value}>
+          <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
             <div class="ap-list-card-item__group flex-col flex-1">
               <div
                 class={[
@@ -219,7 +229,7 @@ export default defineComponent({
             </div>
           </div>
         ) : (
-          <div ref={itemRef} class={itemClassName.value}>
+          <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
             <div class="ap-list-card-item__group flex-col flex-1">
               <div
                 class={[
@@ -254,7 +264,7 @@ export default defineComponent({
           </div>
         )
       ) : (
-        <div ref={itemRef} class={itemClassName.value}>
+        <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
           <div class="ap-list-card-item__group flex-col flex-1">
             <div
               class={[

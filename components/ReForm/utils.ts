@@ -306,51 +306,72 @@ export function validateVisible(
   const method = rule.type === "&" ? "every" : "some";
   return rule.conditions[method](
     (condition: ReFormItemVisibleRuleCondition): boolean => {
-      const { field, value, type } = condition;
-      let flag = true;
-      switch (type) {
-        case "=": // 等于
-          flag = unref(formData[field]) === unref(value);
-          break;
-        case "!=": // 不等
-          flag = unref(formData[field]) !== unref(value);
-          break;
-        case ".": // 在集合
-          flag = unref(formData[field]).includes?.(unref(value));
-          break;
-        case "!.": // 不在集合
-          flag = !unref(formData[field]).includes?.(unref(value));
-          break;
-        case "&.": // 包行 - 两个数组
-          flag = unref(value).every((val: any) =>
-            unref(formData[field]).includes(val)
-          );
-          break;
-        case "!&.": // 没有交集 - 两个数组
-          flag = !unref(value).every((val: any) =>
-            unref(formData[field]).includes(val)
-          );
-          break;
-        case "|.": // 交集 - 两个数组
-          flag = unref(value).some((val: any) =>
-            unref(formData[field]).includes(val)
-          );
-          break;
-        case "^=": // 开头
-          flag = unref(formData[field]).startsWith?.(unref(value));
-          break;
-        case "!^=": // 不以...开头
-          flag = !unref(formData[field]).startsWith?.(unref(value));
-          break;
-        case "=$": // 结尾
-          flag = unref(formData[field]).endsWith?.(unref(value));
-          break;
-        case "!=$": // 不以...结尾
-          flag = !unref(formData[field]).endsWith?.(unref(value));
-          break;
-        default:
-      }
-      return flag;
+      const { field, value, type, ignoreCase = false } = condition;
+      return customCompare(
+        type,
+        unref(formData[field]),
+        unref(value),
+        ignoreCase
+      );
     }
   );
+}
+
+export function ignoreCaseFunc(value: any): any {
+  return isArray(value)
+    ? value.map(val => (isString(val) ? val.toLowerCase() : val))
+    : isString(value)
+      ? value.toLowerCase()
+      : value;
+}
+
+export function customCompare(
+  type: ReFormItemVisibleRuleCondition["type"],
+  value: any,
+  filterValue: any,
+  ignoreCase = false
+): boolean {
+  let flag = true;
+  if (ignoreCase) {
+    value = ignoreCaseFunc(value);
+    filterValue = ignoreCaseFunc(filterValue);
+  }
+  switch (type) {
+    case "=": // 等于
+      flag = value === filterValue;
+      break;
+    case "!=": // 不等
+      flag = value !== filterValue;
+      break;
+    case ".": // 在集合
+      flag = filterValue.includes?.(value);
+      break;
+    case "!.": // 不在集合
+      flag = !filterValue.includes?.(value);
+      break;
+    case "&.": // 包含 - 两个数组
+      flag = value.every((val: any) => filterValue.includes(val));
+      break;
+    case "!&.": // 没有交集 - 两个数组
+      flag = !value.every((val: any) => filterValue.includes(val));
+      break;
+    case "|.": // 交集 - 两个数组
+      flag = value.some((val: any) => filterValue.includes(val));
+      break;
+    case "^=": // 开头
+      flag = value.startsWith?.(filterValue);
+      break;
+    case "!^=": // 不以...开头
+      flag = !value.startsWith?.(filterValue);
+      break;
+    case "=$": // 结尾
+      flag = value.endsWith?.(filterValue);
+      break;
+    case "!=$": // 不以...结尾
+      flag = !value.endsWith?.(filterValue);
+      break;
+    default:
+  }
+
+  return flag;
 }

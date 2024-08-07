@@ -3,7 +3,7 @@
     <el-table
       ref="tableRef"
       class="ap-table__instance"
-      :data="dataSource"
+      :data="tableData"
       :rowKey="rowKey"
       :stripe="stripe"
       :border="border"
@@ -24,17 +24,26 @@
         v-bind="column"
       >
         <template v-if="column.slot" #default="scope">
-          <slot :name="column.slot" v-bind="scope" />
+          <slot v-if="$slots[column.slot]" :name="column.slot" v-bind="scope" />
         </template>
         <template v-if="column.filterIconSlot" #filter-icon="scope">
-          <slot :name="column.filterIconSlot" v-bind="scope" />
+          <slot
+            v-if="$slots[column.filterIconSlot]"
+            :name="column.filterIconSlot"
+            v-bind="scope"
+          />
         </template>
         <template v-if="column.headerSlot" #header="scope">
-          <slot :name="column.headerSlot" v-bind="scope" />
+          <slot
+            v-if="$slots[column.headerSlot]"
+            :name="column.headerSlot"
+            v-bind="scope"
+          />
         </template>
       </el-table-column>
     </el-table>
     <el-pagination
+      v-if="pagination"
       ref="pagerRef"
       class="ap-table__pagination"
       :total="total"
@@ -68,12 +77,14 @@ defineOptions({
 });
 
 const props = withDefaults(defineProps<ReTableProps>(), {
+  pagination: true,
   remote: false,
   gutter: "default",
   rowKey: "id",
   stripe: true,
   border: false,
-  reversePageAfterSort: true
+  reversePageAfterSort: true,
+  resetCurrentPage: true
 });
 
 const emits = defineEmits<ReTableEmits>();
@@ -85,8 +96,8 @@ const localColumns = computed(() => {
     const defaultColumn: Partial<ReTableColumn> = {
       columnKey: item.prop
     };
+    const defaultText = item.defaultText || "-";
     if (!isUndefined(item.options)) {
-      const defaultText = item.defaultText || "-";
       const labelKey = item.labelKey || "label";
       const valueKey = item.valueKey || "value";
 
@@ -100,7 +111,7 @@ const localColumns = computed(() => {
           const opt = item.options.find(
             (opt: Record<string, any>) => opt[valueKey] === cellValue
           );
-          return opt ? opt[labelKey] : cellValue || defaultText;
+          return opt ? opt[labelKey] : cellValue ?? defaultText;
         };
       }
 
@@ -109,6 +120,17 @@ const localColumns = computed(() => {
           text: opt[labelKey],
           value: opt[valueKey]
         }));
+      }
+    } else {
+      if (!item.formatter) {
+        defaultColumn.formatter = (
+          row: any,
+          column: any,
+          cellValue: any,
+          index: number
+        ): string => {
+          return cellValue ?? defaultText;
+        };
       }
     }
     if (!props.remote && item.sortable) {
@@ -156,6 +178,11 @@ const {
   toRemote
 } = usePagination(normalizeProps, emits);
 
+const tableData = computed(() => {
+  if (props.pagination) return dataSource.value;
+  return normalizeProps.value.data;
+});
+
 const tableRef = ref<InstanceType<typeof ElTable> | null>(null);
 const pagerRef = ref<InstanceType<typeof ElPagination> | null>(null);
 
@@ -186,7 +213,11 @@ defineExpose({
   loading,
   currentPage,
   pageSize,
-  total
+  total,
+  tableData,
+  dataSource,
+  sortData,
+  filterData
 });
 </script>
 

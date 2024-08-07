@@ -3,7 +3,13 @@ import { Picture } from "@element-plus/icons-vue";
 import { defineComponent, inject, computed, ref, unref, PropType } from "vue";
 import { DEFAULT_LIST_ITEM_METAS } from "../constants";
 import ReExpandedBtn from "../../ReExpandedBtn";
-import { cloneDeep, isString, isObject, isUndefined } from "lodash-es";
+import {
+  cloneDeep,
+  isString,
+  isObject,
+  isUndefined,
+  isNumber
+} from "lodash-es";
 import useTitleEllipsis from "./useTitleEllipsis";
 import { getRenderFunction, bindNormalProps } from "./utils";
 import type {
@@ -222,9 +228,13 @@ export default defineComponent({
         : null;
       const contentVnode = renderContent.value ? renderContent.value() : null;
       const actionsVnode = renderActions.value ? renderActions.value() : null;
+      const itemHeight = unref(listProps).itemHeight;
+      const itemStyles = itemHeight
+        ? { maxHeight: isNumber(itemHeight) ? `${itemHeight}px` : itemHeight }
+        : {};
 
       return unref(listProps).itemLayout === "horizontal" ? (
-        <div ref={itemRef} class={itemClassName.value}>
+        <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
           <div class="ap-list-item__group flex-1 flex-row items-start">
             {checkboxVnode}
             {expandedVnode}
@@ -241,7 +251,7 @@ export default defineComponent({
           {actionsVnode}
         </div>
       ) : (
-        <div ref={itemRef} class={itemClassName.value}>
+        <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
           <div class="ap-list-item__group flex-row flex-1">
             {checkboxVnode}
             {expandedVnode}

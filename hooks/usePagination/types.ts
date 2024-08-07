@@ -14,6 +14,7 @@ export interface CustomPaginationProps {
     currentPage: number;
     pageSize: number;
   }) => Promise<any>;
+  resetCurrentPage?: boolean;
   data: MaybeRef<Record<string, any>[]>;
 }
 

@@ -38,7 +38,8 @@ import { unref, computed, useAttrs, type ModelRef } from "vue";
 import usePagination from "@/hooks/usePagination";
 
 defineOptions({
-  name: "RePageList"
+  name: "RePageList",
+  inheritAttrs: false
 });
 
 const props = withDefaults(defineProps<RePageListProps>(), {

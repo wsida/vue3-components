@@ -1,14 +1,11 @@
 import { type MaybeRef, unref } from "vue";
 import { isUndefined } from "lodash-es";
+import { getEventName } from "@/utils/vnodes";
 import type {
   ReListItemMeta,
   ReListItemAction,
   ReListItemMetas
 } from "../types";
-
-export function getEventName(event: string): string {
-  return `on${event.slice(0, 1).toUpperCase()}${event.slice(1)}`;
-}
 
 export function bindNormalProps(
   bindProps: Record<string, any>,

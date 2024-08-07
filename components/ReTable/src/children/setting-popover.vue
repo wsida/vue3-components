@@ -29,6 +29,7 @@
           <draggable
             v-model="columns"
             force-fallback
+            itemKey="prop"
             drag-class="ap-page-table-column__dragging-item"
             chosen-class="ap-page-table-column__drag-item--chosen"
             handle=".ap-page-table-column__drag-trigger"

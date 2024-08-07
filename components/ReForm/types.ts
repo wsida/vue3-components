@@ -114,6 +114,7 @@ export interface ReFormItemVisibleRule {
 export interface ReFormItemVisibleRuleCondition {
   field: string; // 关联字段名
   value: any; // 关联字段值 formData[field] 与 value的比较 formData[field].includes(value)
+  ignoreCase?: boolean;
   type?: // 关联字段判断方式 =(等于)，!(非)，.(包含)，^(开头)，$(结尾)，&(全部匹配)，｜(部分匹配)
   "=" | "!=" | "." | "!." | "^=" | "=$" | "!^=" | "!=$" | "&." | "!&." | "|.";
 }
