@@ -1,7 +1,16 @@
 /**
  * 组装分页器统一hook
  */
-import { ref, unref, computed, watch, onMounted, nextTick } from "vue";
+import {
+  ref,
+  unref,
+  computed,
+  watch,
+  onMounted,
+  nextTick,
+  onUpdated,
+  onBeforeUnmount
+} from "vue";
 import { isFunction, debounce } from "lodash-es";
 import type { MaybeRef } from "vue";
 import type {
@@ -15,6 +24,8 @@ export default function useScrollPagination(
   dataKey = "data",
   updateData?: (rows: Record<string, any>[]) => void
 ) {
+  let initObserve = false;
+  let scrollTarget: HTMLElement | null = null;
   const hasObserve = ref(false);
   const loading = ref(false);
   const currentPage = ref(1);
@@ -23,6 +34,9 @@ export default function useScrollPagination(
   const dataSource = computed(() => unref(props)[dataKey]);
 
   const disabledLoad = computed(() => total.value <= dataSource.value.length);
+  const shouldObserveScroll = computed(
+    () => unref(props).remote && unref(props).trigger === "scroll"
+  );
 
   watch(
     () => unref(props).pageSize,
@@ -39,18 +53,16 @@ export default function useScrollPagination(
     }
   );
 
-  watch(
-    () => unref(props).trigger,
-    val => {
-      if (val === "scroll") {
-        observeScroll();
-      } else {
-        disobserveScroll();
-      }
+  watch(shouldObserveScroll, val => {
+    if (val) {
+      observeScroll();
+    } else {
+      disobserveScroll();
     }
-  );
+  });
 
   const handleScroll = debounce(event => {
+    if (loading.value) return;
     const target = event.target;
     const scrollTop = target.scrollTop;
     const scrollHeight = target.scrollHeight;
@@ -65,7 +77,7 @@ export default function useScrollPagination(
     }
   }, unref(props).debounce);
 
-  function toRemote() {
+  function toRemote(callback?: (success: boolean) => void) {
     if (!unref(props).remote) return Promise.resolve(unref(props)[dataKey]);
     if (!unref(props).remoteMethod)
       return Promise.reject(new Error("Remote Request is null"));
@@ -76,6 +88,7 @@ export default function useScrollPagination(
         currentPage: unref(currentPage)
       })
       .then((params: { total: number; rows: Record<string, any>[] }) => {
+        callback && callback(true);
         if (unref(props).dataResponsive) {
           // 自动响应更新
           total.value = params.total;
@@ -93,6 +106,9 @@ export default function useScrollPagination(
           }
         }
       })
+      .catch(() => {
+        callback && callback(false);
+      })
       .finally(() => {
         loading.value = false;
       });
@@ -109,27 +125,45 @@ export default function useScrollPagination(
   function refresh() {
     if (!unref(props).remote) return;
     currentPage.value = 1;
-    toRemote();
+    toRemote((success: boolean) => {
+      if (unref(props).revertAfterRefresh && success) {
+        nextTick(() => {
+          if (scrollTarget) {
+            scrollTarget.scrollTop = 0;
+          } else {
+            const target = unref(props).scrollTarget;
+            const targetDOM = isFunction(target) ? target() : target;
+            if (targetDOM) {
+              scrollTarget = targetDOM as HTMLElement;
+              scrollTarget.scrollTop = 0;
+            }
+          }
+        });
+      }
+    });
   }
 
   function observeScroll() {
-    if (!hasObserve.value) {
-      const target = unref(props).target;
+    if (!initObserve && !hasObserve.value) {
+      const target = unref(props).scrollTarget;
       const targetDOM = isFunction(target) ? target() : target;
       if (targetDOM) {
+        scrollTarget = targetDOM as HTMLElement;
         targetDOM.addEventListener("scroll", handleScroll);
         hasObserve.value = true;
+        initObserve = true;
       }
     }
   }
 
   function disobserveScroll() {
     if (hasObserve.value) {
-      const target = unref(props).target;
+      const target = unref(props).scrollTarget;
       const targetDOM = isFunction(target) ? target() : target;
       if (targetDOM) {
         targetDOM.removeEventListener("scroll", handleScroll);
         hasObserve.value = false;
+        scrollTarget = null;
       }
     }
   }
@@ -138,11 +172,23 @@ export default function useScrollPagination(
     if (unref(props).firstRemote) {
       refresh();
     }
-    if (unref(props).remote && unref(props).trigger === "scroll") {
+    if (shouldObserveScroll.value) {
       nextTick(() => {
         observeScroll();
       });
     }
+  });
+
+  onUpdated(() => {
+    if (!initObserve) {
+      if (shouldObserveScroll.value) {
+        observeScroll();
+      }
+    }
+  });
+
+  onBeforeUnmount(() => {
+    scrollTarget = null;
   });
 
   return {

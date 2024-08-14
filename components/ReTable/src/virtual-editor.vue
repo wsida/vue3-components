@@ -23,6 +23,15 @@
       <template v-for="slotName in slotsNames" #[slotName]="slotScoped">
         <slot v-if="$slots[slotName]" :name="slotName" v-bind="slotScoped" />
       </template>
+      <template v-if="$slots['add-bottom-button']" #add-bottom-button>
+        <slot name="add-bottom-button" />
+      </template>
+      <template v-if="$slots['toolbox-left']" #toolbox-left>
+        <slot name="toolbox-left" />
+      </template>
+      <template v-if="$slots['toolbox-right']" #toolbox-right>
+        <slot name="toolbox-right" />
+      </template>
     </EditorTable>
   </div>
 </template>

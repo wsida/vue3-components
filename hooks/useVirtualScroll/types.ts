@@ -5,7 +5,7 @@ export type CustomVirtualScrollIndex = (
 ) => void;
 
 export interface CustomVirtualScrollProps {
-  scrollTarget: HTMLElement | (() => HTMLElement);
+  scrollTarget: Element | (() => Element);
   offsetTop?: number;
   data: MaybeRef<any[]>;
   pageSize: MaybeRef<number>;
@@ -21,6 +21,7 @@ export interface CustomVirtualScrollReturn {
   endIndex: Ref<number>;
   startPadding: Ref<number>;
   endPadding: Ref<number>;
+  calcScrollTop: () => void;
   scrollTo: (top: number) => void;
   scrollToIndex: CustomVirtualScrollIndex;
 }

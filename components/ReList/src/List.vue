@@ -21,7 +21,10 @@
           <template v-for="item in items" :key="item[rowKey]">
             <div class="ap-list-grid-item">
               <slot :item="item" :metas="metas"
-                ><ReListCardItem :item="item" :metas="metas"
+                ><ReListCardItem
+                  :item="item"
+                  :metas="metas"
+                  @check="checkChange"
               /></slot>
             </div>
           </template>
@@ -35,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, provide, unref } from "vue";
+import { computed, ref, provide, unref } from "vue";
 import { ReListProps, ReListProvide } from "../types";
 import ReListItem from "./Item.vue";
 import ReListCardItem from "./CardItem.vue";
@@ -65,7 +68,6 @@ const props = withDefaults(defineProps<ReListProps>(), {
 });
 
 const emits = defineEmits<{
-  (e: "update:check", checks: Array<string | number>): void;
   (
     e: "check",
     checked: boolean,
@@ -76,12 +78,17 @@ const emits = defineEmits<{
 
 const listRef = ref<HTMLDivElement | null>(null);
 
-const checks = ref<Array<string | number>>([...(props.modelValue || [])]);
+const checks = defineModel<Array<string | number>>("checks", {
+  default: () => []
+});
 
 const listClassName = computed<string[]>(() => {
   const className = ["ap-list"];
   if (props.type === "card") {
     className.push("ap-list--card");
+    if (props.checkable) {
+      className.push("ap-list--checkable");
+    }
   }
   if (props.border) {
     className.push("ap-list--border");
@@ -119,22 +126,12 @@ const gridTemplateStyle = computed(() => {
   return style;
 });
 
-watch(
-  () => props.modelValue,
-  () => {
-    if (!props.modelValue) {
-      checks.value = [];
-    } else {
-      checks.value = [...props.modelValue];
-    }
-  }
-);
-
 function checkChange(
   checked: boolean,
   id: string | number,
   item: Record<string, any>
 ) {
+  emits("check", checked, id, item);
   if (checked) {
     const ind = checks.value.findIndex(check => check === id);
     if (ind === -1) {
@@ -143,9 +140,6 @@ function checkChange(
   } else {
     checks.value = checks.value.filter(check => check !== id);
   }
-
-  emits("check", checked, id, item);
-  emits("update:check", checks.value);
 }
 
 provide(
@@ -153,7 +147,7 @@ provide(
   computed<ReListProvide>(() => ({
     listRef: listRef.value,
     rowClassName: props.rowClassName,
-    modelValue: checks.value,
+    checks: checks.value,
     itemHeight: props.itemHeight,
     avatarHideInExpanded: props.avatarHideInExpanded,
     rowKey: props.rowKey,
@@ -213,6 +207,27 @@ provide(
     }
   }
 
+  @include m(checkable) {
+    .ap-list-grid-item {
+      cursor: pointer;
+
+      .ap-list-card-item {
+        &::before {
+          @apply absolute z-10 left-0 top-0;
+
+          width: 0;
+          height: 0;
+          clip-path: polygon(0 0, 16px 0, 0 16px);
+          content: "";
+          background-color: var(--el-color-primary);
+          transition:
+            width linear 0.2s,
+            height linear 0.2s;
+        }
+      }
+    }
+  }
+
   &__body {
     @apply px-4;
   }
@@ -241,6 +256,64 @@ provide(
     &-item {
       grid-column-start: span 1;
     }
+  }
+
+  .px-4 {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .py-3 {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .pb-3 {
+    padding-bottom: 16px;
+  }
+
+  .flex-1 {
+    flex: 1;
+  }
+
+  .flex-row {
+    flex-direction: row;
+  }
+
+  .flex-col {
+    flex-direction: column;
+  }
+
+  .items-center {
+    align-items: center;
+  }
+
+  .items-start {
+    align-items: flex-start;
+  }
+
+  .items-end {
+    align-items: flex-end;
+  }
+
+  .justify-center {
+    justify-content: center;
+  }
+
+  .justify-start {
+    justify-content: flex-start;
+  }
+
+  .justify-end {
+    justify-content: flex-end;
+  }
+
+  .flex-nowrap {
+    flex-wrap: nowrap;
+  }
+
+  .overflow-hidden {
+    overflow: hidden;
   }
 }
 </style>

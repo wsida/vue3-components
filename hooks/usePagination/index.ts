@@ -105,10 +105,14 @@ export default function usePagination(
       return Promise.reject(new Error("Remote Request is null"));
     loading.value = true;
     return unref(props)
-      .remoteMethod({
-        pageSize: unref(pageSize),
-        currentPage: unref(currentPage)
-      })
+      .remoteMethod(
+        {
+          pageSize: unref(pageSize),
+          currentPage: unref(currentPage)
+        },
+        unref(unref(props).filters),
+        unref(unref(props).sorts)
+      )
       .then((params: { total: number; rows: Record<string, any>[] }) => {
         if (unref(props).dataResponsive) {
           // 自动响应更新

@@ -61,7 +61,6 @@ import { computed, nextTick, ref, shallowRef, unref, useAttrs } from "vue";
 import usePagination from "@/hooks/usePagination/index";
 import { ElPagination, ElTable } from "element-plus";
 import type {
-  ReTableRow,
   ReTableEmits,
   ReTableProps,
   ReTableSortColumn,
@@ -163,6 +162,8 @@ const sortData = computed(() => {
 
 const normalizeProps = computed(() => ({
   ...unref(props),
+  filters: filterTarget,
+  sorts: sortTarget,
   data: unref(sortData)
 }));
 
@@ -188,21 +189,29 @@ const pagerRef = ref<InstanceType<typeof ElPagination> | null>(null);
 
 /**事件冒泡 */
 function onSortChange(data: { column: any; prop: string; order: any }) {
+  sortTarget.value = data;
   emits("sort-change", data);
   if (!props.remote) {
-    sortTarget.value = data;
     if (props.reversePageAfterSort) {
       const pager = currentPage.value;
       nextTick(() => {
         currentPage.value = pager;
       });
     }
+  } else {
+    if (props.autoRemote) {
+      toRemote();
+    }
   }
 }
 function onFilterChange(newFilters: any) {
+  filterTarget.value = newFilters;
   emits("filter-change", newFilters);
-  if (!props.remote) {
-    filterTarget.value = newFilters;
+  if (props.remote) {
+    if (props.autoRemote) {
+      currentPage.value = 1;
+      toRemote();
+    }
   }
 }
 

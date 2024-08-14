@@ -12,8 +12,8 @@ import type {
 import type { CustomVirtualScrollProps } from "@/hooks/useVirtualScroll";
 
 export interface ReListProps {
+  checks: Array<string | number>;
   title?: string;
-  modelValue?: Array<string | number>;
   rowKey?: string;
   split?: boolean;
   loading?: boolean;
@@ -39,7 +39,7 @@ export interface ReListProps {
 export interface ReCustomListProps
   extends Pick<
     ReListProps,
-    "title" | "modelValue" | "loading" | "items" | "metas" | "loading"
+    "title" | "checks" | "loading" | "items" | "metas"
   > {}
 export interface RePageListProps
   extends Omit<CustomPaginationProps, "data">,
@@ -47,7 +47,7 @@ export interface RePageListProps
 
 export interface ReScrollListProps
   extends Omit<CustomScrollPaginationProps, "data"> {
-  height?: number | string;
+  height?: string | number;
   loadingText?: string;
   loadingPosition?: "default" | "footer";
   loadBtnText?: string;
@@ -57,10 +57,23 @@ export interface ReScrollListProps
   metas: ReListProps["metas"];
 }
 
+export interface ReVirtualScrollListProps
+  extends Omit<ReScrollListProps, "height" | "pageSize">,
+    Omit<ReVirtualListProps, "height" | "pageSize"> {
+  height: string | number;
+  pageSize?: number;
+  type?: "card" | "list";
+  gutter?: number | [number] | [number, number];
+}
+
 export interface ReScrollListEmits extends CustomScrollPaginationEmits {
   (e: "update:items", items: ReListProps["items"]): void;
 }
 export interface RePageListEmits extends CustomPaginationEmits {
+  (e: "update:items", items: ReListProps["items"]): void;
+}
+
+export interface ReVirtualScrollListEmits extends CustomScrollPaginationEmits {
   (e: "update:items", items: ReListProps["items"]): void;
 }
 
@@ -105,4 +118,6 @@ export interface ReVirtualListProps
   title: ReListProps["title"];
   items: ReListProps["items"];
   grid?: ReListProps["grid"];
+  type?: "card" | "list";
+  gutter?: number | [number] | [number, number];
 }

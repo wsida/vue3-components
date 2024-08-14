@@ -47,7 +47,7 @@ export interface DialogFormPropsEmits {
     model: MaybeRef<FormModelValue>
   ): void;
   (e: "submit", model?: Record<string, any>): void;
-  (e: "cancel" | "success" | "error", res: unknown): void;
+  (e: "success" | "error", res: unknown): void;
 }
 
 export default function useDialogForm(

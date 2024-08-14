@@ -72,9 +72,37 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-.ap-page-content {
+@include b(page-content) {
   --ap-container-padding: 20px;
+
   @apply relative flex flex-col;
+
+  @include e(header) {
+    $selector: &;
+
+    @apply relative flex-shrink-0 px-[var(--ap-container-padding)] pt-[var(--ap-container-padding)];
+
+    @at-root &--background {
+      background-color: var(--el-bg-color);
+      box-shadow: var(--el-box-shadow-lighter);
+    }
+  }
+
+  @include e(title) {
+    @apply text-[20px] font-normal leading-8;
+
+    color: var(--el-text-color-primary);
+  }
+
+  @include e(description) {
+    @apply text-[14px] font-normal leading-5 mt-4;
+
+    color: var(--el-text-color-regular);
+  }
+
+  @include e(body) {
+    @apply relative flex-1 p-[var(--ap-container-padding)];
+  }
 
   &.is-w-full {
     width: 100%;
@@ -84,33 +112,10 @@ watch(
   &.is-h-full {
     height: 100%;
     overflow-y: hidden;
+
     .ap-page-content__body {
       @apply overflow-hidden;
     }
-  }
-
-  &__header {
-    @apply relative flex-shrink-0 px-[var(--ap-container-padding)] pt-[var(--ap-container-padding)];
-    $selector: &;
-    @at-root &--background {
-      background-color: var(--el-bg-color);
-      box-shadow: var(--el-box-shadow-lighter);
-    }
-  }
-
-  &__title {
-    @apply text-[20px] font-normal leading-8;
-    color: var(--el-text-color-primary);
-    line-height: 32px;
-  }
-
-  &__description {
-    @apply text-[14px] font-normal leading-5 mt-4;
-    color: var(--el-text-color-regular);
-  }
-
-  &__body {
-    @apply relative flex-1 p-[var(--ap-container-padding)];
   }
 }
 </style>

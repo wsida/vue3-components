@@ -4,6 +4,7 @@ import ReListCardItem from "./src/CardItem.vue";
 import RePageList from "./src/PageList.vue";
 import ReScrollList from "./src/ScrollList.vue";
 import ReVirtualList from "./src/VirtualList.vue";
+import ReVirtualScrollList from "./src/VirtualScrollList.vue";
 import type { App } from "vue";
 
 export * from "./types";
@@ -16,5 +17,6 @@ export default {
     app.component(RePageList.name, RePageList);
     app.component(ReScrollList.name, ReScrollList);
     app.component(ReVirtualList.name, ReVirtualList);
+    app.component(ReVirtualScrollList.name, ReVirtualScrollList);
   }
 };

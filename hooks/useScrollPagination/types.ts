@@ -1,5 +1,5 @@
 export interface CustomScrollPaginationProps {
-  target?: Element | (() => Element);
+  scrollTarget?: Element | (() => Element);
   pageSize?: number;
   total?: number;
   autoRemote?: boolean;
@@ -13,6 +13,7 @@ export interface CustomScrollPaginationProps {
   offsetBottom?: number;
   dataResponsive?: boolean;
   debounce?: number;
+  revertAfterRefresh?: boolean;
   trigger?: "scroll" | "custom";
 }
 

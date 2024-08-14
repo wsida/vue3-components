@@ -9,11 +9,17 @@ export interface CustomPaginationProps {
   autoRemote?: boolean;
   firstRemote?: boolean;
   remote?: boolean;
+  filters?: MaybeRef<Record<string, any>>;
+  sorts?: MaybeRef<Record<string, any>>;
   dataResponsive?: boolean;
-  remoteMethod?: (params: {
-    currentPage: number;
-    pageSize: number;
-  }) => Promise<any>;
+  remoteMethod?: (
+    params: {
+      currentPage: number;
+      pageSize: number;
+    },
+    filters?: Record<string, any>,
+    sorts?: Record<string, any>
+  ) => Promise<any>;
   resetCurrentPage?: boolean;
   data: MaybeRef<Record<string, any>[]>;
 }

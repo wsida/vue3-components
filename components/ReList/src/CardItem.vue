@@ -24,11 +24,15 @@ export default defineComponent({
     item: Object as PropType<ReListItemProps["item"]>,
     metas: Object as PropType<ReListItemMetas>
   },
-  // emits: ["check"], // 需要在扩展
+  emits: ["check"],
 
   setup(props, { emit }) {
     const prefixClassName = "ap-list-card-item";
     const listProps = inject(Symbol.for("ap-list-props")) as ReListProvide;
+    const hasChecked = computed(() => {
+      const id = props.item[unref(listProps).rowKey];
+      return unref(listProps).checks.includes(id);
+    });
 
     const itemClassName = computed<string[]>(() => {
       const className = [
@@ -40,6 +44,9 @@ export default defineComponent({
       }
       if (unref(listProps).hover) {
         className.push(`${prefixClassName}--hover`);
+      }
+      if (hasChecked.value) {
+        className.push(`${prefixClassName}--checked`);
       }
       if (unref(listProps).actionPosition === "card-footer") {
         className.push(`${prefixClassName}--footer`);
@@ -169,6 +176,13 @@ export default defineComponent({
       prefixClassName
     );
 
+    function onClick() {
+      if (unref(listProps).checkable) {
+        const id = props.item[unref(listProps).rowKey];
+        emit("check", !hasChecked.value, id, props.item);
+      }
+    }
+
     // 最终返回
     return () => {
       // 返回渲染
@@ -192,12 +206,17 @@ export default defineComponent({
       const actionsVnode = renderActions.value ? renderActions.value() : null;
       const itemHeight = unref(listProps).itemHeight;
       const itemStyles = itemHeight
-        ? { maxHeight: isNumber(itemHeight) ? `${itemHeight}px` : itemHeight }
+        ? { height: isNumber(itemHeight) ? `${itemHeight}px` : itemHeight }
         : {};
 
       return unref(listProps).itemLayout === "horizontal" ? (
         unref(listProps).avatarPosition === "right" ? (
-          <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
+          <div
+            ref={itemRef}
+            class={itemClassName.value}
+            style={itemStyles}
+            onClick={onClick}
+          >
             <div class="ap-list-card-item__group flex-col flex-1">
               <div
                 class={[
@@ -229,7 +248,12 @@ export default defineComponent({
             </div>
           </div>
         ) : (
-          <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
+          <div
+            ref={itemRef}
+            class={itemClassName.value}
+            style={itemStyles}
+            onClick={onClick}
+          >
             <div class="ap-list-card-item__group flex-col flex-1">
               <div
                 class={[
@@ -264,7 +288,12 @@ export default defineComponent({
           </div>
         )
       ) : (
-        <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
+        <div
+          ref={itemRef}
+          class={itemClassName.value}
+          style={itemStyles}
+          onClick={onClick}
+        >
           <div class="ap-list-card-item__group flex-col flex-1">
             <div
               class={[
@@ -334,9 +363,19 @@ export default defineComponent({
     }
   }
 
+  @include m(checked) {
+    @apply border-[var(--el-color-primary)];
+
+    &::before {
+      width: 16px !important;
+      height: 16px !important;
+      // border-radius: var(--el-border-radius-small);
+    }
+  }
+
   @include m(hover) {
     &:hover {
-      @apply border-[var(--el-color-primary-light-1)];
+      @apply border-[var(--el-color-primary)];
     }
 
     .ap-list-card-item {
@@ -365,7 +404,7 @@ export default defineComponent({
   }
 
   &__actions {
-    @apply flex-shrink-0;
+    @apply flex-shrink-0 border-0;
   }
 
   &__avatar {

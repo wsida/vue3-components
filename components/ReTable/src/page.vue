@@ -64,7 +64,7 @@
           placement="top"
           :teleported="!isFullscreen"
         >
-          <el-button link class="!mx-2" @click="onRefresh"
+          <el-button link class="ap-page-table__toolbox-icon" @click="onRefresh"
             ><IconifyIconOffline class="text-[16px]" :icon="Refresh"
           /></el-button>
         </el-tooltip>
@@ -76,7 +76,7 @@
           :teleported="!isFullscreen"
         >
           <el-dropdown popper-class="ap-page-table__drowdown" trigger="click">
-            <el-button link class="!mx-2"
+            <el-button link class="ap-page-table__toolbox-icon"
               ><IconifyIconOnline
                 class="text-[16px]"
                 icon="ri:expand-height-line"
@@ -112,7 +112,7 @@
           :teleported="!isFullscreen"
         >
           <el-dropdown popper-class="ap-page-table__drowdown" trigger="click">
-            <el-button link class="!mx-2"
+            <el-button link class="ap-page-table__toolbox-icon"
               ><IconifyIconOffline class="text-[16px]" :icon="FontSize" />
               <!-- <IconifyIconOffline class="text-[16px]" :icon="ExpandLine" /> -->
             </el-button>
@@ -143,7 +143,11 @@
           content="全屏"
           placement="top"
           :teleported="!isFullscreen"
-          ><el-button link class="!mx-2" @click="toggleFullScreen">
+          ><el-button
+            link
+            class="ap-page-table__toolbox-icon"
+            @click="toggleFullScreen"
+          >
             <IconifyIconOffline
               class="text-[16px]"
               :icon="isFullscreen ? ExitFullscreen : Fullscreen"
@@ -161,7 +165,7 @@
             ref="settingButtonRef"
             v-click-outside="onClickOutside"
             link
-            class="!mx-2"
+            class="ap-page-table__toolbox-icon"
             ><IconifyIconOffline class="text-[16px]" :icon="Setting"
           /></el-button>
         </el-tooltip>
@@ -353,6 +357,10 @@ function onReset() {
   showColumns.value = [...defaultShowColumns];
   settingColumns.value = [...defaultSettingColumns];
 }
+
+defineExpose({
+  reTableRef
+});
 </script>
 
 <style lang="scss" scoped>
@@ -365,6 +373,11 @@ function onReset() {
 
   &__toolbox-right {
     @apply flex items-center justify-end ml-4;
+  }
+
+  &__toolbox-icon {
+    margin-right: 8px !important;
+    margin-left: 8px !important;
   }
 }
 </style>

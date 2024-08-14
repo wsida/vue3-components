@@ -1,6 +1,6 @@
 <template>
   <ReList
-    v-model="checks"
+    v-model:checks="checks"
     :title="title"
     :loading="loading"
     :items="dataSource"
@@ -8,6 +8,9 @@
     v-bind="$attrs"
     customClass="ap-page-list"
   >
+    <template v-if="$slots.default" #default="scoped">
+      <slot :item="scoped.item" :metas="scoped.metas" />
+    </template>
     <template v-if="$slots.title || title" #title>
       <slot name="title" />
     </template>
@@ -53,7 +56,7 @@ const props = withDefaults(defineProps<RePageListProps>(), {
 const emits = defineEmits<RePageListEmits>();
 const $attrs = useAttrs();
 
-const checks = defineModel() as ModelRef<Array<string | number>>;
+const checks = defineModel("checks") as ModelRef<Array<string | number>>;
 const normalizeProps = computed(() => ({
   ...unref(props),
   data: props.items

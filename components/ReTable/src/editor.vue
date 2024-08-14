@@ -157,7 +157,7 @@ const topAddBtnProps = computed<Record<string, any>>(() => {
 const bottomAddBtnProps = computed<Record<string, any>>(() => {
   const btnProps: Record<string, any> = {
     type: "default",
-    class: "ap-btn--block ap-btn--ghost",
+    class: "ap-edit-table__footer-btn",
     disabled: props.addBtnDisabled || props.disabled,
     ...(props.addBtnProps || {})
   };
@@ -1148,7 +1148,9 @@ function onRowConotextMenu(row: any, column: any, event: Event) {
 }
 
 defineExpose({
+  reTableRef,
   editData,
+  normalizeIndex,
   existIndexEditCells,
   existIndexEditRows,
   reset,
@@ -1163,7 +1165,9 @@ defineExpose({
   deleteRow: onDelete,
   validate,
   validateRow,
-  validateCell
+  validateCell,
+  removeEditRows,
+  removeRowCache
 });
 </script>
 
@@ -1239,6 +1243,10 @@ defineExpose({
         }
       }
     }
+  }
+
+  .ap-edit-table__footer-btn {
+    @apply relative block w-full border-dashed;
   }
 }
 </style>

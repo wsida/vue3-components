@@ -199,6 +199,7 @@ export default function useVirtualScroll(
     endPadding,
     startIndex: aStartIndex,
     endIndex: aEndIndex,
+    calcScrollTop,
     scrollTo,
     scrollToIndex
   };

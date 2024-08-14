@@ -16,12 +16,16 @@
     <div class="ap-scroll-list__body" :style="scrollWrapperStyle">
       <el-scrollbar height="100%">
         <ReList
-          v-model="checks"
+          v-model:checks="checks"
           :items="dataSource"
           :metas="metas"
           v-bind="$attrs"
           customClass="ap-scroll-list"
-        />
+        >
+          <template v-if="$slots.default" #default="scoped">
+            <slot :item="scoped.item" :metas="scoped.metas" />
+          </template>
+        </ReList>
         <div
           v-show="doFooterLoading"
           v-loading="doFooterLoading"
@@ -64,22 +68,26 @@ const props = withDefaults(defineProps<ReScrollListProps>(), {
   height: 400,
   pageSize: 50,
   remote: true,
+  trigger: "scroll",
   loadBtnText: "点击加载>>",
   loadingText: "加载中...",
   loadingPosition: "default",
   dataResponsive: true,
   autoRemote: true,
-  firstRemote: true
+  firstRemote: true,
+  revertAfterRefresh: true
 });
 const emits = defineEmits<ReScrollListEmits>();
 const $attrs = useAttrs();
 
-const checks = defineModel() as ModelRef<Array<string | number>>;
+const checks = defineModel("checks") as ModelRef<Array<string | number>>;
 
 const wrapperRef = ref<HTMLDivElement | null>(null);
 const normalizeProps = computed(() => ({
   ...unref(props),
-  target: isUndefined(props.target) ? defaultTarget : props.target,
+  scrollTarget: isUndefined(props.scrollTarget)
+    ? defaultTarget
+    : props.scrollTarget,
   data: props.items
 }));
 

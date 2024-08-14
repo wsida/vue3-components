@@ -75,7 +75,7 @@ export default defineComponent({
             return (
               <span class="ap-list-item__checkbox">
                 <el-checkbox
-                  modelValue={unref(listProps).modelValue.includes(id)}
+                  modelValue={unref(listProps).checks.includes(id)}
                   onChange={(val: boolean) => {
                     emit("check", val, id, props.item);
                   }}
@@ -127,10 +127,15 @@ export default defineComponent({
         ? isUndefined(normalizeItemMetas.value["avatar"]["render"])
           ? () => {
               const avatarProps: Record<string, any> = {
-                size: unref(listProps).itemLayout === "horizontal" ? 24 : 92,
+                size:
+                  unref(listProps).itemLayout === "horizontal" ||
+                  unref(listProps).avatarPosition === "left"
+                    ? 24
+                    : 92,
                 fit: "fill",
                 shape:
-                  unref(listProps).itemLayout === "horizontal"
+                  unref(listProps).itemLayout === "horizontal" ||
+                  unref(listProps).avatarPosition === "left"
                     ? "circle"
                     : "square",
                 alt: "图片"
@@ -146,7 +151,12 @@ export default defineComponent({
               }
               bindNormalProps(avatarProps, normalizeItemMetas.value["avatar"]);
               return (
-                <div class="ap-list-item__avatar">
+                <div
+                  class={[
+                    "ap-list-item__avatar",
+                    `ap-list-item__avatar--${unref(listProps).avatarPosition}`
+                  ]}
+                >
                   <el-avatar {...avatarProps} />
                 </div>
               );
@@ -230,7 +240,7 @@ export default defineComponent({
       const actionsVnode = renderActions.value ? renderActions.value() : null;
       const itemHeight = unref(listProps).itemHeight;
       const itemStyles = itemHeight
-        ? { maxHeight: isNumber(itemHeight) ? `${itemHeight}px` : itemHeight }
+        ? { height: isNumber(itemHeight) ? `${itemHeight}px` : itemHeight }
         : {};
 
       return unref(listProps).itemLayout === "horizontal" ? (
@@ -250,7 +260,7 @@ export default defineComponent({
           {contentVnode}
           {actionsVnode}
         </div>
-      ) : (
+      ) : unref(listProps).avatarPosition === "right" ? (
         <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
           <div class="ap-list-item__group flex-row flex-1">
             {checkboxVnode}
@@ -265,6 +275,21 @@ export default defineComponent({
           </div>
           {avatarVnode}
         </div>
+      ) : (
+        <div ref={itemRef} class={itemClassName.value} style={itemStyles}>
+          <div class="ap-list-item__group flex-row flex-1">
+            {checkboxVnode}
+            {expandedVnode}
+            {avatarVnode}
+            <div class="ap-list-item__group flex-col flex-1">
+              {titleVnode}
+              {subTitleVnode}
+              {contentVnode}
+              {descriptionVnode}
+              {actionsVnode}
+            </div>
+          </div>
+        </div>
       );
     };
   }
@@ -273,7 +298,7 @@ export default defineComponent({
 
 <style lang="scss">
 .ap-list-item {
-  @apply relative flex py-3 overflow-hidden bg-white;
+  @apply relative flex py-3 overflow-hidden bg-white border-0;
 
   @include m(hover) {
     &:hover {
@@ -343,6 +368,10 @@ export default defineComponent({
     .ap-list-item {
       &__avatar {
         @apply ml-4 flex-shrink-0;
+
+        @include m("left") {
+          @apply ml-0;
+        }
       }
 
       &__content {

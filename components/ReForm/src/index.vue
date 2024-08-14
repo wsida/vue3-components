@@ -3,6 +3,7 @@
     <el-form
       ref="reFormRef"
       class="ap-form"
+      :class="{ 'ap-form--readonly': readonly }"
       v-bind="$attrs"
       :model="formDataProxy"
       :rules="formRules"
@@ -304,6 +305,48 @@ defineExpose({
     @apply grid;
 
     transition: grid-template-columns 0.2s ease; /* 过渡效果 */
+  }
+}
+</style>
+<style lang="scss">
+.ap-form {
+  --ap-form-readonly-height-small: 20px;
+  --ap-form-readonly-height-default: 24px;
+  --ap-form-readonly-height-large: 28px;
+
+  @include m(readonly) {
+    .el-form-item--small {
+      .el-form-item__label {
+        height: var(--ap-form-readonly-height-small);
+        line-height: var(--ap-form-readonly-height-small);
+      }
+
+      .el-form-item__content {
+        line-height: var(--ap-form-readonly-height-small);
+      }
+    }
+
+    .el-form-item--default {
+      .el-form-item__label {
+        height: var(--ap-form-readonly-height-default);
+        line-height: var(--ap-form-readonly-height-default);
+      }
+
+      .el-form-item__content {
+        line-height: var(--ap-form-readonly-height-default);
+      }
+    }
+
+    .el-form-item--large {
+      .el-form-item__label {
+        height: var(--ap-form-readonly-height-large);
+        line-height: var(--ap-form-readonly-height-large);
+      }
+
+      .el-form-item__content {
+        line-height: var(--ap-form-readonly-height-large);
+      }
+    }
   }
 }
 </style>

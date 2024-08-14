@@ -7,7 +7,7 @@
     class="ap-collapsed-btn"
     @click="handleSwitchCollapsed"
   >
-    <span>{{
+    <span v-if="!hiddenText" class="ap-collapsed-btn__text">{{
       modelValue ? localCollapsedText[0] : localCollapsedText[1]
     }}</span>
     <el-icon :class="{ 'is-expanded': !modelValue }"><ArrowDown /></el-icon
@@ -28,10 +28,12 @@ const props = withDefaults(
     collapsedText?: string | [string] | [string, string];
     modelValue: boolean;
     disabled?: boolean;
+    hiddenText?: boolean;
   }>(),
   {
     collapsedText: () => ["展开", "收起"],
-    disabled: false
+    disabled: false,
+    hiddenText: false
   }
 );
 
@@ -54,9 +56,11 @@ function handleSwitchCollapsed() {
 .ap-collapsed-btn {
   @apply relative;
 
-  :deep(.el-icon) {
-    @apply ml-1;
+  &__text {
+    @apply mr-1;
+  }
 
+  :deep(.el-icon) {
     transition: all 0.2s linear;
     transform: rotate(0);
     transform-origin: center center;

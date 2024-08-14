@@ -58,7 +58,7 @@ export default function useForm(
     ref(groupDependency);
 
   const formVisible: Ref<Record<string, boolean>> = computed(() => {
-    return normalizeVisible(formItems, formData);
+    return normalizeVisible(formItems, unref(formData));
   });
 
   // formItems => shallwoRef

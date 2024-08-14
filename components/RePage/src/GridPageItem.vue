@@ -18,21 +18,29 @@ defineOptions({
 
 const props = withDefaults(
   defineProps<{
-    span?: number | ReGridResponsive;
+    cSpan?: number | ReGridResponsive;
+    rSpan?: number | ReGridResponsive;
     height?: number;
   }>(),
   {
-    span: 1
+    cSpan: 1,
+    rSpan: 1
   }
 );
 
 const columns: Ref<number> = inject("ap-gird-page-responsive-columns");
 const gridWidth: Ref<number> = inject("ap-gird-page-responsive-width");
 
-const normalizeSpan = computed(() => normalizeGridResponsive(props.span));
-const matchSpan = computed(() => {
-  const span = matchResponsive(unref(gridWidth), unref(normalizeSpan));
+const normalizeColumn = computed(() => normalizeGridResponsive(props.cSpan));
+const matchColumn = computed(() => {
+  const span = matchResponsive(unref(gridWidth), unref(normalizeColumn));
   return Math.min(span, unref(columns));
+});
+
+const normalizeRow = computed(() => normalizeGridResponsive(props.rSpan));
+const matchRow = computed(() => {
+  const span = matchResponsive(unref(gridWidth), unref(normalizeRow));
+  return Math.min(span, Infinity);
 });
 
 const normalizeNumber = (num: number, min = 0, max = Infinity) =>
@@ -42,16 +50,19 @@ const gridItemStyle = computed<CSSProperties>(() => {
   const style: CSSProperties = {};
   if (typeof props.height === "number") {
     style.height = `${normalizeNumber(props.height)}px`;
+  } else {
+    style.height = "auto";
   }
-  if (typeof props.span === "number") {
-    style["grid-column-start"] = `span ${unref(matchSpan)}`;
-  }
+  style["grid-column-start"] = `span ${unref(matchColumn)}`;
+  style["grid-row-start"] = `span ${unref(matchRow)}`;
+  style["align-self"] = "stretch";
+  style["justify-self"] = "stretch";
   return style;
 });
 </script>
 
 <style lang="scss" scoped>
 .ap-grid-page-item {
-  position: relative;
+  @apply relative overflow-hidden;
 }
 </style>
