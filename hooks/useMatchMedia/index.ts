@@ -159,7 +159,7 @@ export function normalizeMediaResponsive<T>(
 export function useMatchMedia<T>(
   media: MaybeRef<T | MediaResponsive<T>>,
   targetDOM = document.body,
-  defaultMedia: MaybeRef<any>
+  defaultMedia: MaybeRef<T> | undefined
 ) {
   // 媒体查询配置
   const medias = computed<MediaResponsive<T>>(() =>
@@ -176,7 +176,7 @@ export function useMatchMedia<T>(
       responsiveWidth.value,
       medias.value,
       unref(defaultMedia)
-    );
+    ) as any;
   });
 
   // 响应监听
@@ -185,7 +185,11 @@ export function useMatchMedia<T>(
     const { width, height } = entry.contentRect;
     responsiveWidth.value = width;
     responsiveHeight.value = height;
-    matchMedia.value = matchMedias<T>(width, medias.value, unref(defaultMedia));
+    matchMedia.value = matchMedias<T>(
+      width,
+      medias.value,
+      unref(defaultMedia)
+    ) as any;
   });
 
   onScopeDispose(() => {
