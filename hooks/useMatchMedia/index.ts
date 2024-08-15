@@ -1,7 +1,7 @@
 import { computed, onScopeDispose, ref, unref, watch } from "vue";
 import { isUndefined, isObject } from "lodash-es";
 import { useResizeObserver } from "@vueuse/core";
-import type { Ref } from "vue";
+import type { MaybeRef } from "vue";
 
 import type { MediaResponsive } from "./types";
 
@@ -157,13 +157,13 @@ export function normalizeMediaResponsive<T>(
 }
 
 export default function useMatchMedia<T>(
-  cols: Ref<T | MediaResponsive<T>>,
+  media: MaybeRef<T | MediaResponsive<T>>,
   targetDOM = document.body,
   defaultMedia: any
 ) {
   // 媒体查询配置
   const medias = computed<MediaResponsive<T>>(() =>
-    normalizeMediaResponsive(unref(cols), defaultMedia)
+    normalizeMediaResponsive(unref(media), defaultMedia)
   );
 
   const matchMedia = ref<T>(defaultMedia);
