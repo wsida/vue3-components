@@ -21,7 +21,7 @@ export {
 
 export type { MediaResponsive };
 
-export function getMedia(key: string) {
+function getMedia(key: string) {
   return Reflect.has(DEFAULT_MEDIA_RESPONSIVE_ITEMS, key)
     ? DEFAULT_MEDIA_RESPONSIVE_ITEMS[key]
     : key.replace("_", DEFAULT_CUSTOM_MEDIA_TYPE);
@@ -32,7 +32,7 @@ export function getMedia(key: string) {
  * @param medias 媒体查询配置
  * @returns 返回媒体查询尺寸升序序列
  */
-export function sortMediaResponsive<T>(medias: MediaResponsive<T>): string[] {
+function sortMediaResponsive<T>(medias: MediaResponsive<T>): string[] {
   const allKeys = Object.keys(medias);
   return allKeys.sort(function (a: string, b: string) {
     const aMedia = getMedia(a);
@@ -56,18 +56,20 @@ export function sortMediaResponsive<T>(medias: MediaResponsive<T>): string[] {
 /**
  * 根据尺寸命中媒体查询配置
  * @param width 尺寸
- * @param medias 媒体查询配置 
+ * @param medias 媒体查询配置
  * @returns 对应尺寸配置内容
  */
-export function matchMedia<T>(
-  width: number,
-  medias: MediaResponsive<T>,
-  defaultMedia?: any
+export function matchMedias<T>(
+  width: MaybeRef<number>,
+  medias: MaybeRef<MediaResponsive<T>>,
+  defaultMedia?: MaybeRef<any>
 ): T | undefined {
+  let defaultValue = unref(defaultMedia);
+  let unrefWidth = unref(width);
   let match: T | undefined = undefined;
-  const medias = sortMediaResponsive(medias).reverse();
+  const mediaItems = sortMediaResponsive(unref(medias)).reverse();
   let isMatch = false;
-  for (const item of medias) {
+  for (const item of mediaItems) {
     const media = getMedia(item);
     const itemMatchs = media.match(MEDIA_RULE_REGEX);
     // if (!itemMatchs || !itemMatchs[0]) continue;
@@ -75,25 +77,25 @@ export function matchMedia<T>(
       const size = parseInt(itemMatchs[2]);
       switch (itemMatchs[1]) {
         case ">":
-          if (width > size) {
+          if (unrefWidth > size) {
             match = medias[item];
             isMatch = true;
           }
           break;
         case ">=":
-          if (width >= size) {
+          if (unrefWidth >= size) {
             match = medias[item];
             isMatch = true;
           }
           break;
         case "<":
-          if (width < size) {
+          if (unrefWidth < size) {
             match = medias[item];
             isMatch = true;
           }
           break;
         case "<=":
-          if (width <= size) {
+          if (unrefWidth <= size) {
             match = medias[item];
             isMatch = true;
           }
@@ -102,7 +104,7 @@ export function matchMedia<T>(
       if (isMatch) break;
     }
   }
-  return match ?? defaultMedia;
+  return match ?? defaultValue;
 }
 
 /**
@@ -112,7 +114,7 @@ export function matchMedia<T>(
  */
 export function normalizeMediaResponsive<T>(
   media: T | MediaResponsive<T>,
-  defaultMedia?: any
+  defaultMedia?: MaybeRef<any>
 ): MediaResponsive<T> {
   const medias: MediaResponsive<T> = {};
   const mediaItems = Object.keys(DEFAULT_MEDIA_RESPONSIVE_ITEMS);
@@ -136,9 +138,7 @@ export function normalizeMediaResponsive<T>(
         .reverse()
         .find(target => !isUndefined(medias[target]));
     }
-    medias[item] = isUndefined(target)
-      ? defaultMedia
-      : medias[target!];
+    medias[item] = isUndefined(target) ? unref(defaultMedia) : medias[target!];
   }
 
   // 匹配自定义size响应，默认都按 >= 处理
@@ -156,26 +156,26 @@ export function normalizeMediaResponsive<T>(
   return medias;
 }
 
-export default function useMatchMedia<T>(
+export function useMatchMedia<T>(
   media: MaybeRef<T | MediaResponsive<T>>,
   targetDOM = document.body,
-  defaultMedia: any
+  defaultMedia: MaybeRef<any>
 ) {
   // 媒体查询配置
   const medias = computed<MediaResponsive<T>>(() =>
-    normalizeMediaResponsive(unref(media), defaultMedia)
+    normalizeMediaResponsive(unref(media), unref(defaultMedia))
   );
 
-  const matchMedia = ref<T>(defaultMedia);
+  const matchMedia = ref<T>(unref(defaultMedia));
 
   const responsiveWidth = ref(0);
   const responsiveHeight = ref(0);
 
   watch(medias, () => {
-    matchMedia.value = matchMedia(
+    matchMedia.value = matchMedias<T>(
       responsiveWidth.value,
       medias.value,
-      defaultMedia
+      unref(defaultMedia)
     );
   });
 
@@ -185,7 +185,7 @@ export default function useMatchMedia<T>(
     const { width, height } = entry.contentRect;
     responsiveWidth.value = width;
     responsiveHeight.value = height;
-    matchMedia.value = matchMedia(width, medias.value);
+    matchMedia.value = matchMedias<T>(width, medias.value, unref(defaultMedia));
   });
 
   onScopeDispose(() => {
