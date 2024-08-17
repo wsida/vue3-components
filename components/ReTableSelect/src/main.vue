@@ -75,6 +75,7 @@ defineOptions({
   name: "ReTableSelect"
 });
 
+const SELECTED_ALL = "ALL";
 let _timestamp = new Date().getTime();
 let stopClickOutside: () => void;
 let ignoreClassnames: string[] = [];
@@ -168,13 +169,13 @@ const selectedAll = computed({
       props.remote &&
       props.pagination &&
       isString(selected.value) &&
-      selected.value === "ALL"
+      selected.value === SELECTED_ALL
     );
   },
 
   set(val) {
     if (val) {
-      selected.value = "ALL";
+      selected.value = SELECTED_ALL;
       // selections 数据有缓存，可以还原数据
     } else {
       if (props.reverseAllAfterSwitch) {
@@ -341,7 +342,7 @@ watch(selected, () => {
   emits(
     "change",
     selected.value,
-    selected.value === "ALL" ? [] : selections.value
+    selected.value === SELECTED_ALL ? [] : selections.value
   );
 });
 
