@@ -161,8 +161,6 @@ import type {
 } from "@/components/ReTable/types";
 import { debounce, isEmpty, isString, isUndefined } from "lodash-es";
 
-// TODO: 工具栏操作忽略不可选中行
-
 type CustomFilter = Partial<Omit<ReTableCustomFilter, "value">>;
 
 defineOptions({
@@ -556,14 +554,24 @@ function onSelectChange(newSelections: ReTableRow[]) {
 }
 
 function onSelectAll() {
-  const tableData = (props.data || []) as ReTableRow[];
+  // TODO: 工具栏操作忽略不可选中行
+  const tableData = props.selectable
+    ? (props.data || []).filter((row: ReTableRow, index: number) =>
+        props.selectable(row, index)
+      )
+    : props.data || [];
+
   selected.value = tableData.map(item => item[props.valueKey]);
   selections.value = [...tableData];
 }
 
 function onRevert() {
+  const tableData = props.selectable
+    ? (props.data || []).filter((row: ReTableRow, index: number) =>
+        props.selectable(row, index)
+      )
+    : props.data || [];
   const selectedRows = (selections.value || []) as ReTableRow[];
-  const tableData = (props.data || []) as ReTableRow[];
   const uncheckedRows = tableData.filter((row: ReTableRow) => {
     return (
       selectedRows.findIndex(
@@ -571,6 +579,7 @@ function onRevert() {
       ) === -1
     );
   });
+
   selected.value = uncheckedRows.map(item => item[props.valueKey]);
   selections.value = [...uncheckedRows];
 }
@@ -585,13 +594,22 @@ function onPageClear() {
 }
 
 function onPageSelectAll() {
-  const tableData = tableRef.value?.tableData || [];
+  const tableData = props.selectable
+    ? (tableRef.value?.tableData || []).filter(
+        (row: ReTableRow, $index: number) => props.selectable(row, $index)
+      )
+    : tableRef.value?.tableData || [];
+
   onSelectChange(tableData);
 }
 
 function onPageRevert() {
+  const tableData = props.selectable
+    ? (tableRef.value?.tableData || []).filter(
+        (row: ReTableRow, $index: number) => props.selectable(row, $index)
+      )
+    : tableRef.value?.tableData || [];
   const selectedRows = tableRef.value?.tableRef.getSelectionRows();
-  const tableData = tableRef.value?.tableData || [];
   const uncheckedRows = tableData.filter((row: ReTableRow) => {
     return (
       selectedRows.findIndex(
@@ -599,6 +617,7 @@ function onPageRevert() {
       ) === -1
     );
   });
+
   onSelectChange(uncheckedRows);
 }
 
