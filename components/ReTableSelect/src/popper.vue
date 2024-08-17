@@ -107,6 +107,7 @@
           :empty-text="localEmptyText"
           :custom-filters="localCustomFilters"
           :autoRemote="false"
+          :row-class-name="rowClassName"
           @current-change="onCurrentChange"
           @filter-change="onFilterChange"
           @sort-change="onSortChange"
@@ -159,6 +160,8 @@ import type {
   ReTableFilterColumn
 } from "@/components/ReTable/types";
 import { debounce, isEmpty, isString, isUndefined } from "lodash-es";
+
+// TODO: 工具栏操作忽略不可选中行
 
 type CustomFilter = Partial<Omit<ReTableCustomFilter, "value">>;
 
@@ -216,6 +219,17 @@ const disabledCheckColumn = computed<ReTableColumn>(() => ({
   renderHeader: () => h(ElCheckbox, { disabled: true, modelValue: true }),
   formatter: () => h(ElCheckbox, { disabled: true, modelValue: true })
 }));
+
+const rowClassName = computed<(data: { row: any; rowIndex: number }) => string>(
+  () => {
+    if (!props.selectable) return () => "";
+    return (data: { row: any; rowIndex: number }) => {
+      if (props.selectable(data.row, data.rowIndex)) return "";
+
+      return "ap-table-select__row--disabled";
+    };
+  }
+);
 
 const hasFilters = computed(
   () =>
@@ -410,14 +424,23 @@ function toRemote() {
  * 单选选中改变-更新数据
  * @param currentRow 选中行数据
  */
-function onCurrentChange(currentRow: ReTableRow) {
+function onCurrentChange(currentRow: ReTableRow, oldRow: ReTableRow) {
   if (props.multiple) return;
   if (!currentRow) return;
   const value = currentRow[props.valueKey];
-  if (selected.value !== value) {
-    selected.value = value;
-    selections.value = { ...currentRow };
-    emits("select", selected.value, selections.value);
+  const $index = tableRef.value.tableData.findIndex(
+    (row: ReTableRow) => row[props.valueKey] === value
+  );
+
+  if (!props.selectable || props.selectable(currentRow, $index)) {
+    // 可选
+    if (selected.value !== value) {
+      selected.value = value;
+      selections.value = { ...currentRow };
+      emits("select", selected.value, selections.value);
+    }
+  } else {
+    tableRef.value.tableRef.setCurrentRow(oldRow);
   }
 }
 

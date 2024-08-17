@@ -1,5 +1,11 @@
 <template>
-  <div :class="['ap-table-select', `ap-table-select--${size}`]">
+  <div
+    :class="[
+      'ap-table-select',
+      `ap-table-select--${size}`,
+      disabled && `ap-table-select--disabled`
+    ]"
+  >
     <div
       ref="tableSelectTriggerRef"
       class="ap-table-select__wrapper"
@@ -57,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch, nextTick } from "vue";
+import { computed, onMounted, ref, watch, nextTick, onBeforeMount } from "vue";
 import { CircleClose, ArrowDown } from "@element-plus/icons-vue";
 import Selection from "./selection.vue";
 import Popper from "./popper.vue";
@@ -119,42 +125,6 @@ const props = withDefaults(defineProps<ReTableSelectProps>(), {
 
 const emits = defineEmits<ReTableSelectEmits>();
 
-let initSelections: ReTableSelectProps["remoteSelected"] = props.remoteSelected;
-
-if (props.modelValue) {
-  if (props.multiple) {
-    if (!initSelections) {
-      initSelections = [] as Record<string, any>[];
-    }
-    const selectedItems: string[] | number[] = initSelections.map(
-      (item: Record<string, any>) => item[props.valueKey]
-    );
-    for (const val of selectedItems) {
-      if (!(props.modelValue as string[] | number[]).includes(val as never)) {
-        const index = initSelections.findIndex(
-          (item: Record<string, any>) => item[props.valueKey] === val
-        );
-        initSelections.splice(index, 1);
-      }
-    }
-    for (const val of props.modelValue as string[] | number[]) {
-      const selectedItem = (initSelections as Record<string, any>[]).find(
-        item => item[props.valueKey] === val
-      );
-      if (!selectedItem) {
-        initSelections.push({ [props.valueKey]: val });
-      }
-    }
-  } else {
-    if (
-      isUndefined(initSelections[props.valueKey]) ||
-      initSelections[props.valueKey] !== (props.modelValue as string | number)
-    ) {
-      initSelections = { [props.valueKey]: props.modelValue };
-    }
-  }
-}
-
 const selectPopperRef = ref<InstanceType<typeof Popper> | null>(null);
 const tableSelectTriggerRef = ref<HTMLDivElement | null>(null);
 const hovering = ref(false);
@@ -162,7 +132,7 @@ const focused = ref(false);
 const visible = ref(false);
 
 const selected = defineModel<ReTableSelectProps["modelValue"]>();
-const selections = ref(initSelections);
+const selections = ref<ReTableRow | ReTableRow[] | undefined>(undefined);
 const selectedAll = computed({
   get() {
     return (
@@ -219,12 +189,13 @@ const selectedCount = computed<number>(() => {
 const hasSelected = computed<boolean>(() => selectedCount.value > 0);
 
 const showSuffixIcon = computed(() => {
-  if (!props.clearable) return true;
+  if (!props.clearable || props.disabled) return true;
   return !hasSelected.value || !hovering.value;
 });
 
 const showClearIcon = computed(
-  () => hasSelected.value && hovering.value && props.clearable
+  () =>
+    props.clearable && !props.disabled && hasSelected.value && hovering.value
 );
 
 const slotsNames = computed(() => {
@@ -335,15 +306,72 @@ const popoverProps = computed<ReTableSelectPopoverProps>(() => ({
 }));
 
 watch(visible, (val: boolean) => {
+  if (props.disabled) {
+    visible.value = false;
+    return;
+  }
   emits("visible-change", val);
 });
 
 watch(selected, () => {
+  if (props.disabled) return;
   emits(
     "change",
     selected.value,
     selected.value === SELECTED_ALL ? [] : selections.value
   );
+});
+
+onBeforeMount(() => {
+  let initSelections: ReTableSelectProps["remoteSelected"] =
+    props.remoteSelected;
+
+  if (!isUndefined(selected.value)) {
+    if (props.multiple) {
+      if (!initSelections) {
+        initSelections = [] as Record<string, any>[];
+      }
+      // 同步顺序
+      let initSelectionsTemp = (props.modelValue as string[] | number[]).map(
+        (val: string | number) => {
+          const row = props.data.find(
+            (row: ReTableRow) => row[props.valueKey] === val
+          );
+          if (row) return { ...row } as ReTableRow;
+
+          const item = initSelections.find(
+            (item: ReTableRow[]) => item[props.valueKey] === val
+          );
+          if (item) return item;
+          return { [props.valueKey]: val } as ReTableRow;
+        }
+      );
+      initSelections = initSelectionsTemp;
+    } else {
+      const row = props.data.find(
+        (row: ReTableRow) => row[props.valueKey] === selected.value
+      );
+      if (row) {
+        initSelections = { ...row } as ReTableRow;
+      } else {
+        if (
+          isUndefined(initSelections) ||
+          isUndefined(initSelections[props.valueKey]) ||
+          initSelections[props.valueKey] !==
+            (props.modelValue as string | number)
+        ) {
+          initSelections = { [props.valueKey]: props.modelValue };
+        }
+      }
+    }
+
+    selections.value = initSelections;
+  } else {
+    if (props.multiple) {
+      selected.value = [];
+      selections.value = [];
+    }
+  }
 });
 
 onMounted(() => {
@@ -365,6 +393,7 @@ function listenerClickOutside() {
   stopClickOutside = onClickOutside(
     tableSelectTriggerRef.value,
     () => {
+      if (props.disabled) return;
       onBlur();
       visible.value = false;
     },
@@ -386,14 +415,17 @@ function stopListenerClickOutside() {
 }
 
 function onMouseenter() {
+  if (props.disabled) return;
   hovering.value = true;
 }
 
 function onMouseleave() {
+  if (props.disabled) return;
   hovering.value = false;
 }
 
 function onClick() {
+  if (props.disabled) return;
   if (!focused.value) {
     onFocus();
   }
@@ -431,11 +463,13 @@ function onClear() {
 }
 
 function focus() {
+  if (props.disabled) return;
   onFocus();
   visible.value = true;
 }
 
 function blur() {
+  if (props.disabled) return;
   onBlur();
   visible.value = false;
 }
@@ -448,7 +482,7 @@ defineExpose({
 });
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 .ap-table-select {
   --ap-table-select-min-width: 140px;
   --ap-table-select-height: var(--el-component-size);
@@ -460,6 +494,7 @@ defineExpose({
   --ap-table-select-focus-border: var(--el-color-primary);
   --ap-table-select-border-radius: var(--el-border-radius-base);
   --ap-table-select-bg-color: var(--el-fill-color-blank);
+  --ap-table-select-disabled-bg-color: var(--el-fill-color-light);
   --ap-table-select-icon-size: 14px;
   --ap-table-select-icon-color: var(--el-text-color-placeholder);
   --ap-table-select-placeholder-color: var(--el-text-color-placeholder);
@@ -486,6 +521,29 @@ defineExpose({
 
     .ap-table-select__wrapper {
       font-size: var(--el-font-size-extra-small);
+    }
+  }
+
+  @include m(disabled) {
+    .ap-table-select {
+      &__wrapper {
+        cursor: not-allowed !important;
+        background-color: var(--ap-table-select-disabled-bg-color);
+        box-shadow: 0 0 0 1px var(--el-disabled-border-color) inset;
+
+        &:hover {
+          box-shadow: 0 0 0 1px var(--el-disabled-border-color) inset;
+        }
+
+        .ap-table-select__selected-text {
+          color: var(--ap-table-select-placeholder-color);
+        }
+      }
+
+      &__icon {
+        color: var(--ap-table-select-placeholder-color);
+        cursor: not-allowed !important;
+      }
     }
   }
 
@@ -546,6 +604,19 @@ defineExpose({
     color: var(--ap-table-select-icon-color);
     transition: var(--el-transition-duration);
     transform: rotate(0);
+  }
+
+  &__row--disabled {
+    cursor: not-allowed;
+    background-color: var(--el-fill-color) !important;
+
+    &:hover {
+      background-color: var(--el-fill-color) !important;
+
+      & > td.el-table__cell {
+        background-color: var(--el-fill-color) !important;
+      }
+    }
   }
 }
 </style>

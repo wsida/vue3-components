@@ -14,7 +14,7 @@
         <template v-for="tag in renderTags" :key="tag[valueKey]">
           <slot name="tag" :tag="tag">
             <el-tag
-              closable
+              :closable="!disabled"
               :type="tagType"
               :effect="tagEffect"
               :disable-transitions="true"
@@ -44,7 +44,7 @@
               <template v-for="tag in renderCollapsedTags" :key="tag[valueKey]">
                 <slot name="tag" :tag="tag">
                   <el-tag
-                    closable
+                    :closable="!disabled"
                     :type="tagType"
                     :effect="tagEffect"
                     :disable-transitions="true"
@@ -140,6 +140,7 @@ watch(collapsedTagsCount, () => {
 });
 
 function onClose(tag: ReTableRow) {
+  if (props.disabled) return;
   selected.value = (selected.value as string[] | number[]).filter(
     (val: number | string) => tag[props.valueKey] !== val
   );
