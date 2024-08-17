@@ -7,14 +7,13 @@
       :rowKey="rowKey"
       :stripe="stripe"
       :border="border"
+      :emptyText="emptyText"
       v-bind="$attrs"
       @sort-change="onSortChange"
       @filter-change="onFilterChange"
     >
-      <template v-if="$slots.empty || emptyText">
-        <slot name="empty"
-          ><div>{{ emptyText }}</div></slot
-        >
+      <template v-if="$slots.empty">
+        <slot name="empty" />
       </template>
       <template v-if="$slots.append"> <slot name="append" /></template>
       <!--表格列配置-->
@@ -23,8 +22,8 @@
         :key="column.columnKey || column.prop"
         v-bind="column"
       >
-        <template v-if="column.slot" #default="scope">
-          <slot v-if="$slots[column.slot]" :name="column.slot" v-bind="scope" />
+        <template v-if="column.slot && $slots[column.slot]" #default="scope">
+          <slot :name="column.slot" v-bind="scope">slot</slot>
         </template>
         <template v-if="column.filterIconSlot" #filter-icon="scope">
           <slot
@@ -223,6 +222,8 @@ defineExpose({
   currentPage,
   pageSize,
   total,
+  sortTarget,
+  filterTarget,
   tableData,
   dataSource,
   sortData,
