@@ -6,6 +6,9 @@
         showTags && multiple && !selectedAll && hasSelected
     }"
   >
+    <div v-if="$slots.prefix" class="ap-table-select__prefix">
+      <slot name="prefix" />
+    </div>
     <div v-if="!hasSelected" class="ap-table-select__placeholder">
       {{ placeholder }}
     </div>
@@ -20,7 +23,12 @@
               :disable-transitions="true"
               :size="size"
               @close="onClose(tag)"
-              >{{ tag[labelKey] || tag[valueKey] }}</el-tag
+              ><slot
+                name="label"
+                :label="tag[labelKey]"
+                :value="tag[valueKey]"
+                >{{ tag[labelKey] || tag[valueKey] }}</slot
+              ></el-tag
             >
           </slot>
         </template>
@@ -50,7 +58,12 @@
                     :disable-transitions="true"
                     :size="size"
                     @close="onClose(tag)"
-                    >{{ tag[labelKey] || tag[valueKey] }}</el-tag
+                    ><slot
+                      name="label"
+                      :label="tag[labelKey]"
+                      :value="tag[valueKey]"
+                      >{{ tag[labelKey] || tag[valueKey] }}</slot
+                    ></el-tag
                   >
                 </slot>
               </template>
@@ -61,14 +74,21 @@
       <template v-else>
         <div class="ap-table-select__selected">
           <div v-if="!multiple" class="ap-table-select__selected-text">
-            {{ selectedText }}
+            <slot
+              name="label"
+              :label="selections[labelKey]"
+              :value="selections[valueKey]"
+              >{{ selectedText }}</slot
+            >
           </div>
           <div v-else-if="selectedAll" class="ap-table-select__selected-text">
-            全选（{{ localTotal }}）
+            <slot name="label" all="true">全选（{{ localTotal }}）</slot>
           </div>
           <div v-else class="ap-table-select__selected-text">
-            已选<span class="is-strong">{{ selectedCount }}</span
-            >/{{ localTotal }}
+            <slot name="label" :count="selectedCount"
+              >已选<span class="is-strong">{{ selectedCount }}</span
+              >/{{ localTotal }}</slot
+            >
           </div>
         </div>
       </template>
@@ -89,6 +109,9 @@ defineOptions({
 
 const tooltipRef = ref<InstanceType<typeof ElTooltip> | null>(null);
 const props = defineProps<ReTableSelection>();
+const emits = defineEmits<{
+  (e: "remove-tag", value: number | string, tag: any): void;
+}>();
 
 const selected = defineModel("selected");
 const selections = defineModel("selections");
@@ -141,6 +164,7 @@ watch(collapsedTagsCount, () => {
 
 function onClose(tag: ReTableRow) {
   if (props.disabled) return;
+  emits("remove-tag", tag[props.valueKey], tag);
   selected.value = (selected.value as string[] | number[]).filter(
     (val: number | string) => tag[props.valueKey] !== val
   );
@@ -160,6 +184,10 @@ function onClose(tag: ReTableRow) {
     }
 
     gap: var(--ap-table-select-gap);
+  }
+
+  &__prefix {
+    @apply flex-shrink-0;
   }
 
   &__placeholder {

@@ -73,6 +73,7 @@ export interface ReTableSelectProps extends ExtendReTableProps {
   resetParamsAfterHide?: boolean;
   remoteSelected?: Record<string, any> | Record<string, any>[]; // 远程请求数据时初始化回填
   reverseAllAfterSwitch?: boolean;
+  hideHeaderCheckAll?: boolean;
 }
 
 export interface ReTableSelectEmits {
@@ -82,8 +83,10 @@ export interface ReTableSelectEmits {
     value: ReTableSelectProps["modelValue"],
     selections: ReTableSelectProps["remoteSelected"]
   ): void;
+  (e: "query", params: any, keyword: string, filters?: any, sorts?: any): void;
   (e: "focus" | "blur" | "clear"): void;
   (e: "visible-change", visible: boolean): void;
+  (e: "remove-tag", value: number | string, tag: any): void;
 }
 
 export interface ReTableSelection
@@ -98,7 +101,6 @@ export interface ReTableSelection
     | "collapseTags"
     | "collapseTagsTooltip"
     | "maxCollapseTags"
-    | "multipleLimit"
     | "effect"
     | "placeholder"
     | "tagType"
@@ -145,6 +147,8 @@ export interface ReTableSelectPopoverProps
       | "labelKey"
       | "valueKey"
       | "selectable"
+      | "multipleLimit"
+      | "hideHeaderCheckAll"
     >,
     ExtendReTableProps {
   selected: ReTableSelectProps["modelValue"];

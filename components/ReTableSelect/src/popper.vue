@@ -106,7 +106,8 @@
           :max-height="maxHeight"
           :empty-text="localEmptyText"
           :custom-filters="localCustomFilters"
-          :autoRemote="false"
+          :auto-remote="false"
+          :data-responsive="false"
           :row-class-name="rowClassName"
           @current-change="onCurrentChange"
           @filter-change="onFilterChange"
@@ -174,13 +175,7 @@ const props = withDefaults(defineProps<ReTableSelectPopoverProps>(), {
 const emits = defineEmits<{
   (e: "select-change", value: any, rows: ReTableRow[]): void;
   (e: "select", value: any, row: ReTableRow): void;
-  (
-    e: "request",
-    params: any,
-    keyword: string,
-    filters?: any,
-    sorts?: any
-  ): void;
+  (e: "query", params: any, keyword: string, filters?: any, sorts?: any): void;
 }>();
 
 const tableRef = ref<InstanceType<typeof ReTable> | null>(null);
@@ -203,8 +198,18 @@ const checkColumn = computed<ReTableColumn>(() => ({
   prop: "selection",
   type: "selection",
   width: "50",
+  labelClassName: props.hideHeaderCheckAll
+    ? "ap-table-select__header-check--hidden"
+    : "",
   selectable: (row: ReTableRow, $index: number) => {
     if (props.remote && props.pagination && selectedAll.value) return false;
+    if (
+      isOverflow.value &&
+      !(selected.value as string[] | number[]).includes(
+        row[props.valueKey] as never
+      )
+    )
+      return false;
     if (props.selectable) return props.selectable(row, $index);
     return true;
   }
@@ -233,6 +238,14 @@ const hasFilters = computed(
   () =>
     (props.filterable && !!keyword.value) || filterIsNoEmpty(filterTarget.value)
 );
+
+const isOverflow = computed(() => {
+  return (
+    props.multiple &&
+    props.multipleLimit &&
+    props.multipleLimit <= (selected.value as string[] | number[]).length
+  );
+});
 
 const localColumns = computed(() => {
   if (props.multiple) {
@@ -408,7 +421,7 @@ function toRemote() {
         });
     } else {
       emits(
-        "request",
+        "query",
         { currentPage: localCurrentPage.value, pageSize: localPageSize.value },
         keyword.value,
         filterTarget.value,
@@ -673,6 +686,14 @@ defineExpose({
   &__popover-filters + &__popover-body {
     .el-table--border {
       @apply mt-3;
+    }
+  }
+
+  &__header-check--hidden {
+    .el-checkbox {
+      display: none !important;
+      visibility: hidden;
+      opacity: 0;
     }
   }
 }

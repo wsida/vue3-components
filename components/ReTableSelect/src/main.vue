@@ -18,9 +18,16 @@
         v-model:selected="selected"
         v-model:selections="selections"
         v-bind="selectionProps"
+        @remove-tag="onRemoveTag"
       >
         <template v-if="$slots.tag" #tag="slotScoped">
           <slot name="tag" v-bind="slotScoped" />
+        </template>
+        <template v-if="$slots.prefix" #prefix>
+          <slot name="prefix" />
+        </template>
+        <template v-if="$slots.label" #label="slotScoped">
+          <slot name="label" v-bind="slotScoped" />
         </template>
       </Selection>
       <div class="ap-table-select__suffix">
@@ -44,6 +51,7 @@
       v-model:selected-all="selectedAll"
       v-bind="popoverProps"
       @select="onSelect"
+      @query="onQuery"
     >
       <template v-if="$slots.header" #header>
         <slot name="header" />
@@ -246,7 +254,6 @@ const selectionProps = computed<ReTableSelection>(() => ({
   collapseTags: props.collapseTags,
   collapseTagsTooltip: props.collapseTagsTooltip,
   maxCollapseTags: props.maxCollapseTags,
-  multipleLimit: props.multipleLimit,
   effect: props.effect,
   placeholder: props.placeholder,
   tagType: props.tagType,
@@ -274,6 +281,7 @@ const popoverProps = computed<ReTableSelectPopoverProps>(() => ({
   filterPlaceholder: props.filterPlaceholder,
   filterProps: props.filterProps,
   remote: props.remote,
+  multipleLimit: props.multipleLimit,
   remoteMethod: props.remoteMethod,
   loading: props.loading,
   loadingText: props.loadingText,
@@ -302,7 +310,8 @@ const popoverProps = computed<ReTableSelectPopoverProps>(() => ({
   resetParamsAfterHide: props.resetParamsAfterHide,
   slotsNames: slotsNames.value,
   firstRemote: props.firstRemote,
-  selectable: props.selectable
+  selectable: props.selectable,
+  hideHeaderCheckAll: props.hideHeaderCheckAll
 }));
 
 watch(visible, (val: boolean) => {
@@ -448,6 +457,10 @@ function onSelect() {
   }
 }
 
+function onQuery(params: any, keyword: string, filters?: any, sorts?: any) {
+  emits("query", params, keyword, filters, sorts);
+}
+
 function onClear() {
   if (!props.multiple) {
     selected.value = undefined;
@@ -460,6 +473,10 @@ function onClear() {
     selectedAll.value = false;
   }
   emits("clear");
+}
+
+function onRemoveTag(value: number | string, tag: any) {
+  emits("remove-tag", value, tag);
 }
 
 function focus() {
@@ -608,14 +625,18 @@ defineExpose({
 
   &__row--disabled {
     cursor: not-allowed;
-    background-color: var(--el-fill-color) !important;
+    background-color: var(--el-fill-color-light) !important;
 
     &:hover {
-      background-color: var(--el-fill-color) !important;
+      background-color: var(--el-fill-color-light) !important;
 
       & > td.el-table__cell {
-        background-color: var(--el-fill-color) !important;
+        background-color: var(--el-fill-color-light) !important;
       }
+    }
+
+    & > td.el-table__cell {
+      color: var(--el-text-color-placeholder) !important;
     }
   }
 }
