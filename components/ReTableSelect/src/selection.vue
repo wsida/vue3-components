@@ -15,7 +15,7 @@
     <template v-else>
       <template v-if="showTags && multiple && !selectedAll">
         <template v-for="tag in renderTags" :key="tag[valueKey]">
-          <slot name="tag" :tag="tag">
+          <slot name="tag" :tag="tag" :handler="onClose" :closable="!disabled">
             <el-tag
               :closable="!disabled"
               :type="tagType"
@@ -36,21 +36,36 @@
         <el-tooltip
           ref="tooltipRef"
           :effect="effect"
-          :disabled="!collapseTagsTooltip"
+          :disabled="!collapseTagsTooltip || !collapsedTagsCount"
           :popper-class="popperClass"
         >
-          <el-tag
+          <slot
             v-if="collapseTags && !!collapsedTagsCount"
-            :type="tagType"
-            :effect="tagEffect"
-            :size="size"
-            :disable-transitions="true"
-            >+{{ collapsedTagsCount }}</el-tag
+            name="tag"
+            :tag="{ [labelKey]: `+${collapsedTagsCount}` }"
+            :count="collapsedTagsCount"
+            :handler="onCloseCollapseTags"
+            :closable="collapseTagClosable"
           >
+            <el-tag
+              :type="tagType"
+              :effect="tagEffect"
+              :size="size"
+              :disable-transitions="true"
+              :closable="collapseTagClosable"
+              @close="onCloseCollapseTags"
+              >+{{ collapsedTagsCount }}</el-tag
+            >
+          </slot>
           <template v-if="collapseTagsTooltip && !!collapsedTagsCount" #content>
             <div class="ap-table-select__collapsed-tags">
               <template v-for="tag in renderCollapsedTags" :key="tag[valueKey]">
-                <slot name="tag" :tag="tag">
+                <slot
+                  name="tag"
+                  :tag="tag"
+                  :handler="onClose"
+                  :closable="!disabled"
+                >
                   <el-tag
                     :closable="!disabled"
                     :type="tagType"
@@ -170,6 +185,26 @@ function onClose(tag: ReTableRow) {
   );
   selections.value = (selections.value as ReTableRow[]).filter(
     (row: ReTableRow) => tag[props.valueKey] !== row[props.valueKey]
+  );
+}
+
+function onCloseCollapseTags() {
+  if (props.disabled) return;
+  if (!props.collapseTagClosable) return;
+  let oldSelected = [...(selected.value as string[] | number[])];
+  let oldSelections = [...(selections.value as ReTableRow[])];
+  const closeTags = [...renderCollapsedTags.value] as ReTableRow[];
+  selected.value = oldSelected.filter(
+    (value: string | number) =>
+      closeTags.findIndex(
+        (item: ReTableRow) => item[props.valueKey] === value
+      ) === -1
+  );
+  selections.value = oldSelections.filter(
+    (row: ReTableRow) =>
+      closeTags.findIndex(
+        (item: ReTableRow) => item[props.valueKey] === row[props.valueKey]
+      ) === -1
   );
 }
 </script>

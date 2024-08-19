@@ -89,7 +89,6 @@ defineOptions({
   name: "ReTableSelect"
 });
 
-const SELECTED_ALL = "ALL";
 let _timestamp = new Date().getTime();
 let stopClickOutside: () => void;
 let ignoreClassnames: string[] = [];
@@ -128,7 +127,9 @@ const props = withDefaults(defineProps<ReTableSelectProps>(), {
   pagination: true,
   pageSize: 10,
   resetParamsAfterHide: true,
-  reverseAllAfterSwitch: true
+  reverseAllAfterSwitch: true,
+  allValue: "ALL",
+  collapsedTagsCount: false
 });
 
 const emits = defineEmits<ReTableSelectEmits>();
@@ -147,13 +148,13 @@ const selectedAll = computed({
       props.remote &&
       props.pagination &&
       isString(selected.value) &&
-      selected.value === SELECTED_ALL
+      selected.value === props.allValue
     );
   },
 
   set(val) {
     if (val) {
-      selected.value = SELECTED_ALL;
+      selected.value = props.allValue;
       // selections 数据有缓存，可以还原数据
     } else {
       if (props.reverseAllAfterSwitch) {
@@ -262,7 +263,8 @@ const selectionProps = computed<ReTableSelection>(() => ({
   remote: props.remote,
   selectedCount: selectedCount.value,
   hasSelected: hasSelected.value,
-  popperClass: collapseTagsPopperClassname
+  popperClass: collapseTagsPopperClassname,
+  collapseTagClosable: props.collapseTagClosable
 }));
 
 const popoverProps = computed<ReTableSelectPopoverProps>(() => ({
@@ -327,7 +329,7 @@ watch(selected, () => {
   emits(
     "change",
     selected.value,
-    selected.value === SELECTED_ALL ? [] : selections.value
+    selected.value === props.allValue ? [] : selections.value
   );
 });
 

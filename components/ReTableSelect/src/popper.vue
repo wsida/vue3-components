@@ -83,7 +83,7 @@
           </template>
         </div>
         <div v-if="remote" class="ap-table-select__popover-toolbox-right">
-          <el-button link type="primary">刷新</el-button>
+          <el-button link type="primary" @click="toRemote">刷新</el-button>
         </div>
       </div>
       <div class="ap-table-select__popover-body">
@@ -265,6 +265,8 @@ const normalizeCustomFilters = computed<CustomFilter[]>(() => {
   if (!props.filterProps) return [buildCustomFilter(props.labelKey)];
   if (isString(props.filterProps))
     return [buildCustomFilter(props.filterProps)];
+  if (!Array.isArray(props.filterProps))
+    return [normalizeCustomFilter(props.filterProps)];
 
   return props.filterProps.map((item: string | CustomFilter) => {
     if (isString(item)) return buildCustomFilter(item);

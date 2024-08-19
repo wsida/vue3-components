@@ -43,6 +43,7 @@ export interface ReTableSelectProps extends ExtendReTableProps {
   filterProps?:
     | string
     | string[]
+    | Partial<Omit<ReTableCustomFilter, "value">>
     | Partial<Omit<ReTableCustomFilter, "value">>[];
   remote?: boolean;
   remoteMethod?: (
@@ -74,6 +75,8 @@ export interface ReTableSelectProps extends ExtendReTableProps {
   remoteSelected?: Record<string, any> | Record<string, any>[]; // 远程请求数据时初始化回填
   reverseAllAfterSwitch?: boolean;
   hideHeaderCheckAll?: boolean;
+  allValue?: string | number;
+  collapseTagClosable?: boolean;
 }
 
 export interface ReTableSelectEmits {
@@ -108,6 +111,7 @@ export interface ReTableSelection
     | "total"
     | "remote"
     | "showTags"
+    | "collapseTagClosable"
   > {
   selected: ReTableSelectProps["modelValue"];
   selections: ReTableSelectProps["remoteSelected"];
