@@ -423,6 +423,7 @@ onMounted(() => {
   &__shallow {
     @apply absolute -top-[40px] left-0 inline-block whitespace-pre opacity-0;
 
+    padding: var(--ap-tag-input-padding);
     font-size: var(--el-font-size-base);
     visibility: hidden;
   }
