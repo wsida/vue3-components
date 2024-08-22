@@ -18,6 +18,9 @@ export interface ReTagListProps {
   gap?: number;
   buttonText?: string;
   buttonProps?: Partial<ButtonProps>;
+  showOverflowTooltip?: boolean;
+  tooltipEffect?: "light" | "dark";
+  teleported?: boolean;
   // addable?: boolean;
   // clearable?: boolean;
 }

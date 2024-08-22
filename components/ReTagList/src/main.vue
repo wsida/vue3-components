@@ -37,7 +37,16 @@
           >
             <span
               class="ap-tag-list__tag-content"
-              :title="isString(tag) ? tag : tag[labelKey]"
+              @mouseenter="
+                event => {
+                  onMouseenter(event, tag);
+                }
+              "
+              @mouseleave="
+                event => {
+                  onMouseleave(event, tag);
+                }
+              "
               >{{ isString(tag) ? tag : tag[labelKey] }}</span
             >
           </el-tag>
@@ -60,7 +69,16 @@
           >
             <span
               class="ap-tag-list__tag-content"
-              :title="isString(tag) ? tag : tag[labelKey]"
+              @mouseenter="
+                event => {
+                  onMouseenter(event, tag);
+                }
+              "
+              @mouseleave="
+                event => {
+                  onMouseleave(event, tag);
+                }
+              "
               >{{ isString(tag) ? tag : tag[labelKey] }}</span
             >
           </el-tag>
@@ -97,13 +115,29 @@
         class="ap-tag-list__shallow"
       />
     </template>
+    <el-tooltip
+      v-if="showOverflowTooltip"
+      ref="tooltipRef"
+      placement="bottom"
+      popper-class="ap-tag-list__tooltip"
+      virtual-triggering
+      :visible="tooltipVisible"
+      :popper-options="popperOptions"
+      :virtual-ref="tagRef"
+      :effect="tooltipEffect"
+      :teleported="teleported"
+    >
+      <template #content>
+        {{ tooltipContent }}
+      </template>
+    </el-tooltip>
   </div>
 </template>
 
 <script setup lang="ts">
 import { Plus } from "@element-plus/icons-vue";
-import { ElMessage, ElInput } from "element-plus";
-import { debounce, isObject, isString, isUndefined } from "lodash-es";
+import { ElMessage, ElInput, ElTooltip } from "element-plus";
+import { debounce, isObject, isString, isUndefined, noop } from "lodash-es";
 import { ReTagListEmits, ReTagListProps } from "../types";
 import { computed, nextTick, onMounted, ref } from "vue";
 
@@ -126,10 +160,27 @@ const props = withDefaults(defineProps<ReTagListProps>(), {
   debounce: 300,
   buttonText: "",
   uncheckTagType: "default",
-  checkTagType: "primary"
+  checkTagType: "primary",
+  showOverflowTooltip: false,
+  tooltipEffect: "dark",
+  teleported: true
 });
 
 const emits = defineEmits<ReTagListEmits>();
+
+let _hideTooltipTimeout: any;
+
+const popperOptions = {
+  modifiers: [
+    {
+      name: "computeStyles",
+      options: {
+        adaptive: false,
+        enabled: false
+      }
+    }
+  ]
+};
 
 const inputVisible = ref(false);
 const inputValue = ref("");
@@ -138,6 +189,11 @@ const wrapperRef = ref<HTMLDivElement | null>(null);
 const inputRef = ref<InstanceType<typeof ElInput> | null>(null);
 const wrapperWidth = ref(0);
 const inputWidth = ref(100);
+
+const tooltipVisible = ref(false);
+const tooltipContent = ref("");
+const tooltipRef = ref<InstanceType<typeof ElTooltip> | null>(null);
+const tagRef = ref<HTMLSpanElement | null>(null);
 
 const localButtonProps = computed(
   () =>
@@ -299,6 +355,36 @@ function onEnter() {
   }
 }
 
+function onMouseenter(event: MouseEvent, tag: string | Record<string, any>) {
+  if (!props.showOverflowTooltip) return;
+  if (_hideTooltipTimeout) {
+    clearTimeout(_hideTooltipTimeout);
+  }
+  const target = event.target as HTMLSpanElement;
+  const isOverflow = target.scrollWidth > target.offsetWidth;
+  if (isOverflow) {
+    tooltipContent.value = isString(tag) ? tag : tag[props.labelKey];
+    tooltipVisible.value = true;
+    tagRef.value = target;
+  } else {
+    tooltipVisible.value = false;
+    tooltipContent.value = "";
+    tagRef.value = null;
+  }
+}
+
+function onMouseleave(event: MouseEvent, tag: string | Record<string, any>) {
+  if (!props.showOverflowTooltip) return;
+  if (_hideTooltipTimeout) {
+    clearTimeout(_hideTooltipTimeout);
+  }
+  _hideTooltipTimeout = setTimeout(() => {
+    tooltipVisible.value = false;
+    tooltipContent.value = "";
+    tagRef.value = null;
+  }, props.debounce);
+}
+
 onMounted(() => {
   nextTick(() => {
     const rect = wrapperRef.value.getBoundingClientRect();
@@ -445,5 +531,12 @@ onMounted(() => {
     height: var(--ap-tag-button-height);
     padding: var(--ap-tag-button-padding);
   }
+}
+</style>
+
+<style lang="scss">
+.ap-tag-list__tooltip {
+  max-width: 94vw;
+  word-break: break-word;
 }
 </style>
