@@ -2,7 +2,7 @@
     <!--注意只有展示的时候在显示，否则初始化计算画布尺寸失效，都为0，会导致导出图片失败。建议配合v-if使用-->
 	<wxml-to-canvas
         ref="widgetRef"
-        class="wpt-widget"
+        class="wsd-widget"
         :width="canvasWidth"
         :height="canvasHeight"
         :style="{width: `${canvasWidth}px`, height: `${canvasHeight}px`}"
@@ -12,7 +12,7 @@
 
 <script setup>
     import { computed } from 'vue';
-    import useWxmlToCanvas from '../../static/ts/hooks/useWxmlToCanvas';
+    import useWxmlToCanvas from '../../hooks/useWxmlToCanvas';
     
     const props = defineProps({
         canvasWidth: {
@@ -105,7 +105,7 @@
 </script>
 
 <style lang="scss">
-    .wpt-widget {
+    .wsd-widget {
         position: relative;
         box-sizing: border-box;
         

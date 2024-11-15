@@ -21,10 +21,8 @@
 
 import { onMounted, ref, unref } from 'vue';
 
-let FontLoaded = false;
-
 export default function useWxmlToCanvas(wxml = '', style = {}, isNull = false) {
-    let _timeout = null;
+    let _timeout: ReturnType<typeof setTimeout> = -1;
     const defaultWxml = ref(wxml);
     const defaultStyle = ref(style);
     const renderWxml = ref('');
@@ -35,17 +33,7 @@ export default function useWxmlToCanvas(wxml = '', style = {}, isNull = false) {
     const allowNull = ref(isNull);
     
     onMounted(() => {
-        if (!FontLoaded) {
-            uni.loadFontFace({
-                global: true,
-                scopes: ['webview', 'native'],
-                family: 'harmony',
-                source: 'url("https://expo.obs.cn-gdgz1.ctyun.cn/mini-app/v3/HarmonyOS_SansSC_Regular.ttf")',
-                success: () => {
-                    FontLoaded = true;
-                }
-            })
-        }
+      // do something... example as loadFont
     })
     
     function init(wxml = '', style = {}) {
@@ -72,7 +60,7 @@ export default function useWxmlToCanvas(wxml = '', style = {}, isNull = false) {
         renderStyle.value = style;
     }
     
-    function renderCanvas(wxml?: string, style?: AnyObject): Promise<any> {
+    function renderCanvas(wxml?: string, style?: any): Promise<any> {
         const rwxml = unref(wxml || defaultWxml.value);
         const rstyle = unref(style || defaultStyle.value);
         if (!widgetRef.value || !rwxml) return allowNull.value ? Promise.resolve('') : Promise.reject(false);
@@ -81,7 +69,7 @@ export default function useWxmlToCanvas(wxml = '', style = {}, isNull = false) {
         setStyle(rstyle);
         return new Promise((resolve, reject) => {
             widgetRef.value.renderToCanvas({ wxml: rwxml, style: rstyle })
-                .then((res: AnyObject) => {
+                .then((res: any) => {
                   canvasContianer.value = res;
                   resolve(canvasContianer.value);
                 }).catch(() => {
@@ -90,12 +78,12 @@ export default function useWxmlToCanvas(wxml = '', style = {}, isNull = false) {
         })
     }
     
-    function generateImageAfterRender(params?: AnyObject): Promise<string | boolean> {
+    function generateImageAfterRender(params?: any): Promise<string | boolean> {
         if (!widgetRef.value || !renderWxml.value) return allowNull.value ? Promise.resolve('') : Promise.reject(false);
         return new Promise((resolve, reject) => {
             // {fileType, quality} 支持 文件类型fileType: jpg/png; 图片质量quality，图片的质量目前仅对 jpg 有效
             widgetRef.value.canvasToTempFilePath(params)
-                .then((res: AnyObject) => {
+                .then((res: any) => {
                     tempFilePath.value = res.tempFilePath;
                     resolve(tempFilePath.value);
                 }).catch(() => {
@@ -105,7 +93,7 @@ export default function useWxmlToCanvas(wxml = '', style = {}, isNull = false) {
     }
     
     // 二合一 - 获取分享概览图
-    function generateImage(wxml?: string, style?: AnyObject, params?: AnyObject, limitTimeout = true): Promise<string | boolean> {
+    function generateImage(wxml?: string, style?: any, params?: any, limitTimeout = true): Promise<string | boolean> {
         return new Promise((resolve, reject) => {
             if (limitTimeout) {
                 _timeout = setTimeout(() => {
@@ -115,11 +103,11 @@ export default function useWxmlToCanvas(wxml = '', style = {}, isNull = false) {
             renderCanvas(wxml, style)
                 .then(() => {
                     generateImageAfterRender(params)
-                        .then((imageUrl: string) => {
+                        .then((imageUrl: unknown) => {
                             if (_timeout) {
                                 clearTimeout(_timeout);
                             }
-                            resolve(imageUrl);
+                            resolve(imageUrl as string);
                         })
                         .catch(() => {
                             if (_timeout) {
