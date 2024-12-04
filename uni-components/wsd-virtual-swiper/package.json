@@ -1,0 +1,17 @@
+{
+    "id": "wsd-virtual-swiper",
+    "displayName": "虚拟Swiper",
+    "version": "1.0.1",
+    "description": "提供组件和hook方法，可用于解决渲染大量swiper-item引起的性能问题，swiper滑动切换丝滑，避免swiepr手动调整current引起的重回问题。",
+    "keywords": [
+        "Swiper",
+        "Swiper优化",
+        "虚拟Swiper",
+        "动态Swiper"
+    ],
+    "repository": "",
+    "engines": {
+        "HBuilderX": "^3.2.6"
+    },
+    "dependencies": {}
+}

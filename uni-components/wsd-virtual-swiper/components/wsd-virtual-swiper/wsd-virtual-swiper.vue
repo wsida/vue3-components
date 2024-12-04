@@ -19,9 +19,10 @@
     <swiper-item
       class="wsd-virtual-swiper-item"
       v-for="item in currentSwipers"
-      :key="item.id"
+      :key="item[finalyKeyField]"
+      wx:key="_id"
     >
-      <slot name="swiper-item" :item="item"></slot>
+      <slot name="swiper-item" :item="item" :id="item[finalyKeyField]"></slot>
     </swiper-item>
   </swiper>
 </template>
@@ -37,6 +38,10 @@ const props = defineProps({
   defaultCurrent: {
     type: Number,
     default: 0,
+  },
+  ignoreChangeByManual: {
+	type: Boolean,
+	default: false
   },
   data: {
     type: Array,
@@ -88,6 +93,7 @@ const {
   finalyCircular,
   onSwiperChange,
   scrollIntoSwiper,
+  index2Current,
 } = useVirtualSwiper(props, emits);
 
 defineExpose({
@@ -100,6 +106,7 @@ defineExpose({
   finalyCircular,
   onSwiperChange,
   scrollIntoSwiper,
+  index2Current,
 });
 </script>
 

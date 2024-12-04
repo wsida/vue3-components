@@ -1,4 +1,14 @@
 // swiper 数组渲染优化
+/**
+ * @description 大量swiper数据渲染导致dom节点过多问题优化-动态控制渲染的swiper渲染
+ * 目前默认按 3 个swiper-item进行轮播渲染
+ * 根据当前data-current对应的数据项，动态维护数据项前一项和后一项内容
+ * 然后数据子集根据swiper当前current值进行偏移对齐，保证swiper展示item与数据项对齐。
+ *
+ * @warning acceleration 属性必须关闭否则容易存在渲染结果偏差
+ * 由于这种对数据子集进行偏移的操作，对于数据项总数有要求，否则在首尾位置时可能偏移后与实际数据顺序又不一致，
+ * 因此对于首尾位置需要进行特殊处理，子集数量可以大于3，但不超过5.
+ */
 
 import { unref, ref, watch, computed, onMounted } from 'vue';
 import type { Ref } from 'vue';
@@ -15,6 +25,8 @@ export interface VirtualSwiperProps {
   circular?: boolean;
   keyField?: string;
   duration?: number;
+  ignoreChangeByManual?: boolean;
+  triggerWhenMounted?: boolean;
 }
 
 export interface VirtualSwiperReturn {
@@ -27,6 +39,7 @@ export interface VirtualSwiperReturn {
   finalyCircular: Ref<boolean>;
   onSwiperChange: (e: { current: number }) => void;
   scrollIntoSwiper: (index: number) => void;
+  index2Current: (index: number) => number;
 }
 
 export interface VirtualSwiperEmits {
@@ -52,6 +65,7 @@ export default function useVirtualSwiper(
   let _durationTimeout: ReturnType<typeof setTimeout>;
   let _swiperTimeout: ReturnType<typeof setTimeout>;
 
+  const changeManualFlag = ref(false);
   const defaultCurrent = unref(props).defaultCurrent ?? 0;
   const defaultDuration = unref(props).duration ?? 250;
   const defaultCircular = unref(props).circular ?? false;
@@ -65,8 +79,12 @@ export default function useVirtualSwiper(
 
   const normalizeData = computed(() => {
     return unref(props).data.map((item: string | number | object) => {
-      if (typeof item === 'object') return item;
+      if (typeof item === 'object') {
+        item['_id'] = item[unref(finalyKeyField)];
+        return item;
+      }
       return {
+        _id: item,
         [unref(finalyKeyField)]: item,
       };
     });
@@ -80,21 +98,33 @@ export default function useVirtualSwiper(
   );
   const swiperMaxCounts = computed(() => 3 + unref(swiperOffset));
 
-  watch(dataCurrent, (val) => {
-    emits &&
-      emits(
-        'current-change',
-        currentKey.value,
-        val,
-        getPrevIndex(val, unref(swiperCounts)),
-        getNextIndex(val, unref(swiperCounts))
-      );
-  });
+  watch(
+    dataCurrent,
+    (val) => {
+      emits &&
+        emits(
+          'current-change',
+          currentKey.value,
+          val,
+          getPrevIndex(val, unref(swiperCounts)),
+          getNextIndex(val, unref(swiperCounts))
+        );
+    },
+    { immediate: false }
+  );
 
   // swiper 绑定 change事件
   function onSwiperChange(e: any) {
-    // console.log('>>>swiper change', e)
-    if (_swiperTimeout) {
+    console.log(
+      'swiper change',
+      swiperCurrent.value,
+      e.detail.current,
+      changeManualFlag.value
+    );
+    if (
+      _swiperTimeout &&
+      (!unref(props).ignoreChangeByManual || !changeManualFlag.value)
+    ) {
       clearTimeout(_swiperTimeout);
     }
 
@@ -105,15 +135,19 @@ export default function useVirtualSwiper(
 
     swiperCurrent.value = e.detail.current;
 
-    _swiperTimeout = setTimeout(() => {
-      finalyDuration.value = 0;
+    if (changeManualFlag.value) {
+      changeManualFlag.value = false;
+    } else {
+      _swiperTimeout = setTimeout(() => {
+        finalyDuration.value = 0;
 
-      updateCurrentSwiper();
+        updateCurrentSwiper();
 
-      _durationTimeout = setTimeout(() => {
-        finalyDuration.value = defaultDuration;
-      }, defaultDuration);
-    }, defaultDuration + 1);
+        _durationTimeout = setTimeout(() => {
+          finalyDuration.value = defaultDuration;
+        }, defaultDuration);
+      }, defaultDuration + 1);
+    }
   }
 
   function getCurrentIndex(index: number, len: number) {
@@ -233,7 +267,7 @@ export default function useVirtualSwiper(
   }
 
   // 更新渲染的swiper-item数据集
-  function updateDataCurrent(index: number) {
+  function updateDataCurrent(index: number, trigger = true) {
     dataCurrent.value = getCurrentIndex(index, unref(swiperCounts));
 
     if (defaultCircular) {
@@ -242,7 +276,8 @@ export default function useVirtualSwiper(
       updateCurrentSwiperByDefault();
     }
 
-    emits &&
+    trigger &&
+      emits &&
       emits(
         'swiper-change',
         unref(currentKey),
@@ -251,21 +286,40 @@ export default function useVirtualSwiper(
       );
   }
 
-  // 滚动到指定索引的数据项
-  function scrollIntoSwiper(index: number) {
+  function index2Current(index: number) {
     if (unref(finalyCircular)) {
-      swiperCurrent.value = index % 3;
+      return index % 3;
     } else {
-      swiperCurrent.value =
-        index && index > unref(swiperEndOffset)
-          ? ((index - unref(swiperOffset)) % 3) + unref(swiperOffset)
-          : index % 3;
+      return index && index > unref(swiperEndOffset)
+        ? ((index - unref(swiperOffset)) % 3) + unref(swiperOffset)
+        : index % 3;
     }
-    updateDataCurrent(index);
+  }
+
+  /**
+   * @description滚动到指定索引的数据项
+   * @param index 滚动到指定数据索引item
+   * @param trigger 是否触发swiper-change事件
+   * @param init 初始化渲染标识（mounted阶段），避免初始化swiper不会触发swiper-change事件导致 changeManualFlag 标识未重置。
+   */
+  function scrollIntoSwiper(index: number, trigger = false, init = false) {
+    const oldCurrent = swiperCurrent.value;
+    const newCurrent = index2Current(index);
+    if (oldCurrent !== newCurrent) {
+      swiperCurrent.value = newCurrent; // 触发 swiper change 事件
+      if (!init && unref(props).ignoreChangeByManual) {
+        changeManualFlag.value = true;
+      }
+    }
+    updateDataCurrent(index, trigger);
   }
 
   onMounted(() => {
-    scrollIntoSwiper(getCurrentIndex(defaultCurrent, unref(swiperCounts)));
+    scrollIntoSwiper(
+      getCurrentIndex(defaultCurrent, unref(swiperCounts)),
+      !!unref(props).triggerWhenMounted,
+      true
+    );
   });
 
   return {
@@ -278,5 +332,6 @@ export default function useVirtualSwiper(
     currentSwipers,
     onSwiperChange,
     scrollIntoSwiper,
+    index2Current,
   };
 }
