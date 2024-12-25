@@ -176,6 +176,8 @@ export default {
 | circular       | swiper 是否可循环                                                                                                                   |    boolean    |  false  |
 | keyField       | 数据集主键字段名                                                                                                                    |    string     |  'id'   |
 | duration       | swiper 过渡时长。过渡时长过大可能对 swiper 渲染异步数据存在影响，可根据实际场景进行调整，或者对于异步请求可以通过遮罩限制快速滑动。 |    number     |   250   |
+| ignoreChangeByManual       | 手动调整swiper的current值是否触发swiper-change事件 |    boolean     |   false   |
+| triggerWhenMounted       | 组件挂载是否触发swiper-change事件 |    boolean     |   true   |
 
 还有一些 Swiper 组件支持的属性。
 

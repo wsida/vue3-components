@@ -2,7 +2,7 @@
   <swiper
     class="wsd-virtual-swiper"
     :circular="finalyCircular"
-    :current="swiperCurrent"
+    :current="swiperCurrentTemp"
     :duration="finalyDuration"
     :indicator-dots="indicatorDots"
     :indicator-color="indicatorColor"
@@ -18,11 +18,16 @@
   >
     <swiper-item
       class="wsd-virtual-swiper-item"
-      v-for="item in currentSwipers"
-      :key="item[finalyKeyField]"
+      v-for="(item, index) in currentSwipers"
+      :key="`${item[finalyKeyField]}-${index}`"
       wx:key="_id"
     >
-      <slot name="swiper-item" :item="item" :id="item[finalyKeyField]"></slot>
+      <slot
+        name="swiper-item"
+        :item="item"
+        :index="index"
+        :id="item[finalyKeyField]"
+      ></slot>
     </swiper-item>
   </swiper>
 </template>
@@ -40,8 +45,12 @@ const props = defineProps({
     default: 0,
   },
   ignoreChangeByManual: {
-	type: Boolean,
-	default: false
+    type: Boolean,
+    default: false,
+  },
+  triggerWhenMounted: {
+    type: Boolean,
+    default: true,
   },
   data: {
     type: Array,
@@ -84,6 +93,7 @@ const props = defineProps({
 const emits = defineEmits(['current-change', 'swiper-change']);
 
 const {
+  swiperCurrentTemp,
   swiperCurrent,
   dataCurrent,
   currentKey,
@@ -97,6 +107,7 @@ const {
 } = useVirtualSwiper(props, emits);
 
 defineExpose({
+  swiperCurrentTemp,
   swiperCurrent,
   dataCurrent,
   currentKey,
@@ -124,6 +135,15 @@ defineExpose({
     display: block;
     width: 100%;
     height: 100%;
+
+    & > view {
+      // template slot
+      position: relative;
+      box-sizing: border-box;
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
   }
 }
 </style>

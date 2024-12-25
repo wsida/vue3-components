@@ -10,7 +10,7 @@
  * 因此对于首尾位置需要进行特殊处理，子集数量可以大于3，但不超过5.
  */
 
-import { unref, ref, watch, computed, onMounted } from 'vue';
+import { unref, ref, watch, computed, onMounted, nextTick } from 'vue';
 import type { Ref } from 'vue';
 
 /**
@@ -31,6 +31,7 @@ export interface VirtualSwiperProps {
 
 export interface VirtualSwiperReturn {
   swiperCurrent: Ref<number>;
+  swiperCurrentTemp: Ref<number>;
   dataCurrent: Ref<number>;
   currentKey: Ref<string | number | undefined>;
   currentSwipers: Ref<SwiperItem[]>;
@@ -47,7 +48,8 @@ export interface VirtualSwiperEmits {
     event: 'swiper-change',
     key: string | number,
     dataCurrent: number,
-    swiperCurrent: number
+    swiperCurrent: number,
+    init: boolean
   ): void;
   (
     event: 'current-change',
@@ -71,6 +73,7 @@ export default function useVirtualSwiper(
   const defaultCircular = unref(props).circular ?? false;
   const dataCurrent = ref(defaultCurrent);
   const swiperCurrent = ref(0);
+  const swiperCurrentTemp = ref(0);
   const currentKey = ref();
   const currentSwipers: Ref<SwiperItem[]> = ref([]);
   const finalyKeyField = ref(unref(props).keyField ?? 'id');
@@ -115,12 +118,6 @@ export default function useVirtualSwiper(
 
   // swiper 绑定 change事件
   function onSwiperChange(e: any) {
-    console.log(
-      'swiper change',
-      swiperCurrent.value,
-      e.detail.current,
-      changeManualFlag.value
-    );
     if (
       _swiperTimeout &&
       (!unref(props).ignoreChangeByManual || !changeManualFlag.value)
@@ -225,6 +222,9 @@ export default function useVirtualSwiper(
       currentSwipers.value = shiftSwipers(newCurrentSwipers);
     }
     finalyCircular.value = circular;
+    nextTick(() => {
+      swiperCurrentTemp.value = swiperCurrent.value;
+    })
     // console.log('>>>swiper', dataCurrent.value, swiperCurrent.value, currentSwipers.value);
   }
 
@@ -249,6 +249,7 @@ export default function useVirtualSwiper(
           unref(normalizeData)[eIndex],
         ];
         circular = true;
+        swiperCurrent.value = swiperCurrent.value % 3;
         currentSwipers.value = shiftSwipers(newCurrentSwipers);
       } else if (cIndex <= unref(swiperStartOffset)) {
         currentSwipers.value = unref(normalizeData).slice(
@@ -263,12 +264,17 @@ export default function useVirtualSwiper(
     }
 
     finalyCircular.value = circular;
+    nextTick(() => {
+      swiperCurrentTemp.value = swiperCurrent.value;
+    })
     // console.log('>>>swiper', dataCurrent.value, swiperCurrent.value, currentSwipers.value);
   }
 
   // 更新渲染的swiper-item数据集
-  function updateDataCurrent(index: number, trigger = true) {
+  function updateDataCurrent(index: number, trigger = true, init = false) {
     dataCurrent.value = getCurrentIndex(index, unref(swiperCounts));
+    currentKey.value =
+      unref(normalizeData)[unref(dataCurrent)][unref(finalyKeyField)];
 
     if (defaultCircular) {
       updateCurrentSwiperByCircle();
@@ -276,18 +282,21 @@ export default function useVirtualSwiper(
       updateCurrentSwiperByDefault();
     }
 
-    trigger &&
-      emits &&
-      emits(
-        'swiper-change',
-        unref(currentKey),
-        unref(dataCurrent),
-        unref(swiperCurrent)
-      );
+    setTimeout(() => {
+      trigger &&
+        emits &&
+        emits(
+          'swiper-change',
+          unref(currentKey),
+          unref(dataCurrent),
+          unref(swiperCurrent),
+          init
+        );
+    }, 50);
   }
 
   function index2Current(index: number) {
-    if (unref(finalyCircular)) {
+    if (defaultCircular) {
       return index % 3;
     } else {
       return index && index > unref(swiperEndOffset)
@@ -311,7 +320,7 @@ export default function useVirtualSwiper(
         changeManualFlag.value = true;
       }
     }
-    updateDataCurrent(index, trigger);
+    updateDataCurrent(index, trigger, init);
   }
 
   onMounted(() => {
@@ -329,6 +338,7 @@ export default function useVirtualSwiper(
     currentKey,
     dataCurrent,
     swiperCurrent,
+    swiperCurrentTemp,
     currentSwipers,
     onSwiperChange,
     scrollIntoSwiper,
