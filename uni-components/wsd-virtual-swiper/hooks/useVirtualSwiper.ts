@@ -38,6 +38,7 @@ export interface VirtualSwiperReturn {
   finalyKeyField: Ref<string>;
   finalyDuration: Ref<number>;
   finalyCircular: Ref<boolean>;
+  swiperChanging: Ref<boolean>;
   onSwiperChange: (e: { current: number }) => void;
   scrollIntoSwiper: (index: number) => void;
   index2Current: (index: number) => number;
@@ -66,6 +67,7 @@ export default function useVirtualSwiper(
 ): VirtualSwiperReturn {
   let _durationTimeout: ReturnType<typeof setTimeout>;
   let _swiperTimeout: ReturnType<typeof setTimeout>;
+  let _swiperEventTimeout: ReturnType<typeof setTimeout>;
 
   const changeManualFlag = ref(false);
   const defaultCurrent = unref(props).defaultCurrent ?? 0;
@@ -79,6 +81,7 @@ export default function useVirtualSwiper(
   const finalyKeyField = ref(unref(props).keyField ?? 'id');
   const finalyDuration = ref(defaultDuration);
   const finalyCircular = ref(defaultCircular);
+  const swiperChanging = ref(false);
 
   const normalizeData = computed(() => {
     return unref(props).data.map((item: string | number | object) => {
@@ -135,15 +138,16 @@ export default function useVirtualSwiper(
     if (changeManualFlag.value) {
       changeManualFlag.value = false;
     } else {
+      swiperChanging.value = true;
       _swiperTimeout = setTimeout(() => {
         finalyDuration.value = 0;
-
         updateCurrentSwiper();
 
         _durationTimeout = setTimeout(() => {
           finalyDuration.value = defaultDuration;
+          swiperChanging.value = false;
         }, defaultDuration);
-      }, defaultDuration + 1);
+      }, defaultDuration + 50);
     }
   }
 
@@ -224,7 +228,7 @@ export default function useVirtualSwiper(
     finalyCircular.value = circular;
     nextTick(() => {
       swiperCurrentTemp.value = swiperCurrent.value;
-    })
+    });
     // console.log('>>>swiper', dataCurrent.value, swiperCurrent.value, currentSwipers.value);
   }
 
@@ -266,7 +270,7 @@ export default function useVirtualSwiper(
     finalyCircular.value = circular;
     nextTick(() => {
       swiperCurrentTemp.value = swiperCurrent.value;
-    })
+    });
     // console.log('>>>swiper', dataCurrent.value, swiperCurrent.value, currentSwipers.value);
   }
 
@@ -282,7 +286,11 @@ export default function useVirtualSwiper(
       updateCurrentSwiperByDefault();
     }
 
-    setTimeout(() => {
+    if (_swiperEventTimeout) {
+      clearTimeout(_swiperEventTimeout);
+    }
+
+    _swiperEventTimeout = setTimeout(() => {
       trigger &&
         emits &&
         emits(
@@ -292,7 +300,7 @@ export default function useVirtualSwiper(
           unref(swiperCurrent),
           init
         );
-    }, 50);
+    }, defaultDuration + 50);
   }
 
   function index2Current(index: number) {
@@ -316,7 +324,7 @@ export default function useVirtualSwiper(
     const newCurrent = index2Current(index);
     if (oldCurrent !== newCurrent) {
       swiperCurrent.value = newCurrent; // 触发 swiper change 事件
-      if (!init && unref(props).ignoreChangeByManual) {
+      if (init || unref(props).ignoreChangeByManual) {
         changeManualFlag.value = true;
       }
     }
@@ -340,6 +348,7 @@ export default function useVirtualSwiper(
     swiperCurrent,
     swiperCurrentTemp,
     currentSwipers,
+    swiperChanging,
     onSwiperChange,
     scrollIntoSwiper,
     index2Current,
