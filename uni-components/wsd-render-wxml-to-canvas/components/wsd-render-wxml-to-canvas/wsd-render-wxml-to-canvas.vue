@@ -1,6 +1,7 @@
 <template>
     <!--注意只有展示的时候在显示，否则初始化计算画布尺寸失效，都为0，会导致导出图片失败。建议配合v-if使用-->
 	<wxml-to-canvas
+        v-if="showCanvas"
         ref="widgetRef"
         class="wsd-widget"
         :width="canvasWidth"
@@ -66,6 +67,8 @@
         }
     })
 
+    const showCanvas = ref(true);
+
     const {
         tempFilePath,
         widgetRef,
@@ -83,6 +86,21 @@
         }
         return params;
     })
+
+    // wx-wxml-to-canvas 在组件挂载后获取canvas对象，如果后续进行尺寸修改，canvas对象尺寸无法修改
+    // 这时候将会使用初始化的尺寸进行绘制，就会导致绘制内容存在像素偏差（如拉伸等问题）
+    // 因此需要这里进行组建重新挂载，保证canvas对象可以重新获取。
+    // 这里可能会造成渲染延时，调用时也需要延时一段时间在获取canvas对象进行绘图（至少一个setTimeout）。
+    // 所以如果是固定尺寸下请在初始时就指定canvas尺寸。
+    watch(
+        () => [props.canvasWidth, props.canvasHeight],
+        () => {
+            showCanvas.value = false;
+            nextTick(() => {
+                showCanvas.value = true;
+            });
+        }
+    );
 
     function toRenderToCanvas() {
         return renderCanvas(props.customWxml, props.customStyle);
@@ -113,8 +131,8 @@
             position: absolute;
             z-index: -1;
             opacity: 0;
-            right: -100vw;
-            bottom: -100vh;
+            left: -100vw;
+            top: -100vh;
         }
     }
 </style>
