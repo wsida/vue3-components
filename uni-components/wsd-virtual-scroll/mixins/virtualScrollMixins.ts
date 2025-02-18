@@ -4,6 +4,7 @@
 import { throttle } from '../utils/common';
 
 export interface CacheItemSize {
+    _v_index: number
     _v_key: number | string
     cellItemSize: number
     cellItemTotal: number
@@ -52,7 +53,7 @@ export default {
             default: 0
         }, // 滚动容器的滚动距离 - scrollTop/scrollLeft
         scrollOffset: Number, // 滚动距离需要偏移的距离 - 存在affixDistance的时候
-        useAffixDistance: Boolean, // scrollOffset = affixDistance
+        usePrefixDistance: Boolean, // scrollOffset = affixDistance
         data: {
             type: Array,
             default: () => ([])
@@ -109,6 +110,10 @@ export default {
           type: Boolean,
           default: false
         },
+        ignoreCountsChange: {
+          type: Boolean,
+          default: false
+        }
     },
 
     data() {
@@ -132,7 +137,8 @@ export default {
             lastStartIndex: -1,
             lastEndIndex: -1,
             innerScrollDistance: 0,
-            opacity: 1
+            opacity: 1,
+            _oldListCounts: 0,
         }
     },
     
@@ -140,14 +146,29 @@ export default {
         finalFps() {
             return this.fps ?? 60;
         },
-        defaultDynamicRenderSize() {
-            return this.viewCounts + (2 * this.previewCounts);
+        finalViewCount() {
+          const defaultViewCount = this.viewCounts;
+          const diff = defaultViewCount % this.finalCellCols;
+          if (diff  === 0) return defaultViewCount;
+          return defaultViewCount + (this.finalCellCols - diff);
+        },
+        finalPreviewCount() {
+          const defaultViewCount = this.previewCounts;
+          const diff = defaultViewCount % this.finalCellCols;
+          if (diff  === 0) return defaultViewCount;
+          return defaultViewCount + (this.finalCellCols - diff);
+        },
+        finalScrollDirection() {
+          return this.scrollDirection ?? 'y';
         },
         finalCellSize() {
             return this.cellItemSize || 0;
         },
         finalCellCols() {
             return this.cellCols || 1;
+        },
+        defaultDynamicRenderSize() {
+            return this.finalViewCount + (2 * this.finalPreviewCount);
         },
         normalizeData() {
             return (this.data || []).map(cellItem => {
@@ -204,7 +225,7 @@ export default {
             if (!this.virtual) return Math.min(Math.max(0, index), this.listCounts - 1);
             return Math.min(Math.max(0, this.aStartIndex + index), this.listCounts - 1);
         },
-        // const vEndIndex = computed<number>(() => Math.min(this.listCounts, unref(vStartIndex) + unref(this.viewCounts)));
+        // const vEndIndex = computed<number>(() => Math.min(this.listCounts, unref(vStartIndex) + unref(this.finalViewCount)));
 
         // const aStartIndex = computed<number>(() => getStartIndex(unref(vStartIndex)));
 
@@ -244,8 +265,7 @@ export default {
         deleteCellItemByIndex(aIndex: number) {
             if (this.cellSizeMode === 'fixed') return;
             const forceRender = this.aStartIndex && aIndex < this.aStartIndex;
-            const id = this.normalizeData[aIndex][CellKeyName];
-            const cIndex = this.startHeightCache.findIndex((cache: CacheItemSize) => cache[CellKeyName] === id);
+            const cIndex = Math.floor(aIndex / this.finalCellCols);
             this.startHeightCache.splice(cIndex, 1);
             this.$nextTick(() => {
                 this.updateTotalPadding();
@@ -259,31 +279,29 @@ export default {
             })
         },
         
-        // 登记数据item缓存尺寸
-        registerCellItemCacheSize(id: string | number, size: number, total = 0) {
-            const cacheIndex = this.startHeightCache.findIndex((cache: CacheItemSize) => cache[CellKeyName] === id)
+        // 登记数据item缓存尺寸 - 对应虚拟行索引
+        registerCellItemCacheSize(index: number, size: number, total = 0) {
+            const rowData = this.normalizeData[index];
+            const rowIndex = Math.floor(index / this.finalCellCols);
             
             const cellItemCache: CacheItemSize = {
-                [CellKeyName]: id,
+                [CellIndexName]: index,
+                [CellKeyName]: rowData[CellKeyName],
                 cellItemSize: size,
                 cellItemTotal: total
             }
 
-            if (cacheIndex !== -1) {
-                this.startHeightCache[cacheIndex] = cellItemCache;
-            } else {
-                this.startHeightCache.push(cellItemCache);
-            }
+            this.startHeightCache[rowIndex] = cellItemCache;
         },
         
-        // 获取数据item缓存-item尺寸
+        // 获取数据item缓存-item尺寸 - index实际数索索引
         getCellItemCacheSize(index: number) {
             if (!this.listCounts) return 0;
-            const id = this.normalizeData[index][CellKeyName];
+            const rowIndex = Math.floor(index / this.finalCellCols);
             let cellItemSize = 0;
-            const cacheIndex = this.startHeightCache.findIndex((cache: CacheItemSize) => cache[CellKeyName] === id)
-            if (cacheIndex !== -1) {
-                cellItemSize = this.startHeightCache[cacheIndex].cellItemSize;
+            const cache = this.startHeightCache[rowIndex]
+            if (!!cache) {
+                cellItemSize = cache.cellItemSize;
             } else {
                 cellItemSize = this.finalCellSize || this.virtualCellSize;
             }
@@ -291,36 +309,36 @@ export default {
             return cellItemSize;
         },
         
-        // 获取数据item缓存-展示item的滚动距离
+        // 获取数据item缓存-展示item的滚动距离 - index实际数索索引
         getCellItemCacheTotal(index: number) {
             if (!this.listCounts) return 0;
-            const id = this.normalizeData[index][CellKeyName];
+            const rowIndex = Math.floor(index / this.finalCellCols);
             let total = 0;
-            const cacheIndex = this.startHeightCache.findIndex((cache: CacheItemSize) => cache[CellKeyName] === id)
-            if (cacheIndex !== -1) {
-                total = this.startHeightCache[cacheIndex].cellItemTotal;
+            const cache = this.startHeightCache[rowIndex]
+            if (!!cache) {
+                total = cache.cellItemTotal;
             } else {
                 if (this.cellSizeMode === 'fixed') {
-                    total = Math.max(0, index - 1) * this.getCellItemCacheSize(index);
+                    total = Math.max(0, rowIndex - 1) * this.getCellItemCacheSize(0);
                 } else if (this.cellSizeMode === 'dynamic') {
                     // 动态高度，每个元素的缓存都在初始化时拥有
-                    total = this.normalizeData.slice(0, index).reduce((currentTotal: number, cell: any, cindex: number) => {
-                        const cellSize = this.getCellItemCacheSize(cindex);
-                        return currentTotal + cellSize;
-                    }, 0);
+                    let cTotal = 0;
+                    for (let i = 0; i <= index; i+=this.finalCellCols) {
+                      cTotal += this.getCellItemCacheSize(i);
+                    }
+                    total = cTotal;
                 }
             }
             
             return total;
         },
         
-        // 获取数据item尺寸，并进行缓存登记
+        // 获取数据item尺寸，并进行缓存登记 - index实际数索索引
         getAndRegisterCellItemSize(index: number, lastTotal: number) {
             if (!this.listCounts) return 0;
             
-            const id = this.normalizeData[index][CellKeyName];
             const cellItemSize = this.getCellItemCacheSize(index);
-            this.registerCellItemCacheSize(id, cellItemSize, lastTotal);
+            this.registerCellItemCacheSize(index, cellItemSize, lastTotal);
             
             return cellItemSize;
         },
@@ -333,17 +351,13 @@ export default {
             let start = 0;
             
             for (let i = start; i < this.listCounts; i += this.finalCellCols) {
+                sid = i;
                 let ctotal = total + this.getCellItemCacheSize(i);
                 if (ctotal <= top) {
                     total = ctotal;
-                    sid = i;
                 } else {
                     break;
                 }
-            }
-        
-            if (total && total === top) {
-                sid += this.finalCellCols;
             }
         
             this.vStartIndex = sid;
@@ -351,7 +365,7 @@ export default {
         },
         
         updatevEndIndex() {
-            this.vEndIndex = Math.min(this.listCounts, this.vStartIndex + this.viewCounts);
+            this.vEndIndex = Math.min(this.listCounts, this.vStartIndex + this.finalViewCount);
             this.updateaEndIndex();
         },
         
@@ -371,13 +385,7 @@ export default {
                 let cellItemSize = this.getAndRegisterCellItemSize(i, total);
                 total += cellItemSize;
             }
-            if (count + 1 < this.listCounts) {
-                // 计算偏差
-                let ind = count + 1;
-                let cellItemSize = this.getAndRegisterCellItemSize(ind, total);
-                total += cellItemSize;
-            }
-            // return total;
+
             this.totalPadding = total;
             this._vfirstRenderFlag = true;
             callback && callback();
@@ -385,7 +393,7 @@ export default {
 
         updateStartPadding() {
             let total = 0;
-            let start = Math.floor(this.aStartIndex / this.finalCellCols);
+            let start = Math.max(0, this.aStartIndex);
             
             total = this.getCellItemCacheTotal(start) ?? 0;
             // return total;
@@ -395,13 +403,13 @@ export default {
         // const scrollToDebounce = debounce(scrollTo, this.debounce);
         // const scrollToThrottle = throttle(scrollTo, this.debounce);
 
-        updateVirtualList(distance = 0) {
+        updateVirtualList(distance = 0, forceUpdateList = false) {
             this.innerScrollDistance = distance;
             this.updatevStartIndex(distance);
             this.updatevEndIndex();
             // 同步更新其他数据字段
             this.updateStartPadding();
-            this._updateVirtualList();
+            this._updateVirtualList(forceUpdateList);
         },
         
         forceUpdateVirtualList() {
@@ -409,7 +417,8 @@ export default {
         },
         
         _updateVirtualList(force = false) {
-            const shouldUpdate = force || (this.lastStartIndex !== this.aStartIndex || this.lastEndIndex !== this.aEndIndex);
+            const shouldUpdate = force || (!this.virtualList.length && !!this.listCounts) || (this._oldListCounts !== this.listCounts) || (this.lastStartIndex !== this.aStartIndex || this.lastEndIndex !== this.aEndIndex);
+            this._oldListCounts = this.listCounts;
             if (shouldUpdate) {
                 this.lastStartIndex = this.aStartIndex;
                 this.lastEndIndex = this.aEndIndex;
@@ -423,7 +432,7 @@ export default {
         },
 
         getStartIndex(startIndex: number) {
-            let _index = Math.min(Math.max(0, startIndex - this.previewCounts), this.listCounts);
+            let _index = Math.min(Math.max(0, startIndex - this.finalPreviewCount), this.listCounts);
             const diff = _index % this.finalCellCols;
             if (!diff) {
                 _index = Math.max(0, _index - diff);
@@ -432,7 +441,7 @@ export default {
         },
 
         getEndIndex(endIndex: number) {
-            let _index = Math.max(0, Math.min(this.listCounts, endIndex + this.previewCounts));
+            let _index = Math.max(0, Math.min(this.listCounts, endIndex + this.finalPreviewCount));
 
             const diff = _index % this.finalCellCols;
             if (!diff) {
@@ -473,10 +482,11 @@ export default {
             }
         },
 
+        // 滚动到指定索引-index实际数据索引
         _scrollToIndex(index: number, callback?: Function) {
             if (!this.virtual) return;
             let startIndex = this.getStartIndex(index);
-            let distance = this.getCellItemCacheTotal(startIndex) + (this.useAffixDistance ? (this.affixDistance ?? 0) : (this.scrollOffset ?? 0));
+            let distance = this.getCellItemCacheTotal(startIndex) + (this.usePrefixDistance ? (this.prefixDistance ?? 0) : (this.scrollOffset ?? 0));
 
             this._scrollTo(distance)
             this.$nextTick(() => {
@@ -510,9 +520,9 @@ export default {
                     for (const rect of rects) {
                         const cell = this.virtualList[i];
                         const id = cell[CellKeyName];
-                        const size = this.scrollDirection === 'x'
+                        const size = this.finalScrollDirection === 'x'
                             ? rect.width
-                            : this.scrollDirection === 'y'
+                            : this.finalScrollDirection === 'y'
                                 ? rect.height
                                 : 0
             
@@ -541,9 +551,9 @@ export default {
                 const query = uni.createSelectorQuery().in(this);
                 query.select(`#${cell[CellIndexName]}`).boundingClientRect((res: UniApp.NodeInfo) => {
                     if (res) {
-                        if (this.scrollDirection === 'x') {
+                        if (this.finalScrollDirection === 'x') {
                             this.virtualCellSize = res.width;
-                        } else if (this.scrollDirection === 'y') {
+                        } else if (this.finalScrollDirection === 'y') {
                             this.virtualCellSize = res.height;
                         }
                         callback && callback();
@@ -567,7 +577,7 @@ export default {
                 this.renderDynamicVirtualList(() => {
                     this._vgetFinalCellSizeFlag = true;
                     this.updateTotalPadding(() => {
-                        this.updateVirtualList(distance);
+                        this.updateVirtualList(distance, true);
                         callback && callback();
                         this.opacity = 1;
                         this._vinitRenderFlag = false;
@@ -580,7 +590,7 @@ export default {
                     this.renderDefaultVirtualList(() => {
                         this._vgetFinalCellSizeFlag = true;
                         this.updateTotalPadding(() => {
-                            this.updateVirtualList(distance);
+                            this.updateVirtualList(distance, true);
                             callback && callback();
                             this.opacity = 1;
                             this._vinitRenderFlag = false;
@@ -589,7 +599,7 @@ export default {
                     })
                 } else {
                     this.updateTotalPadding(() => {
-                        this.updateVirtualList(distance);
+                        this.updateVirtualList(distance, true);
                         callback && callback();
                         this._vinitRenderFlag = false;
                         this._vinitRenderedFlag = true;
@@ -599,7 +609,7 @@ export default {
                 // 使用startPadding + totalPadding
                 this._vgetFinalCellSizeFlag = true;
                 this.updateTotalPadding(() => {
-                    this.updateVirtualList(distance);
+                    this.updateVirtualList(distance, true);
                     callback && callback();
                     this._vinitRenderFlag = false;
                     this._vinitRenderedFlag = true;
@@ -628,7 +638,7 @@ export default {
         
         listCounts() {
             if (!this.virtual) return;
-            if (this.cellSizeMode === 'fixed') {
+            if (!this.ignoreCountsChange && this.cellSizeMode === 'fixed') {
                 this.initVirtualList(this.updateFormStart ? 0 : this.innerScrollDistance);
                 // this.$nextTick(() => {
                 //     this.initVirtualList(this.updateFormStart ? 0 : this.innerScrollDistance);

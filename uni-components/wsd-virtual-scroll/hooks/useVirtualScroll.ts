@@ -6,6 +6,7 @@ import { throttle } from '../utils/common';
 // import { debounce, throttle } from '../utils/common';
 
 export interface CacheItemSize {
+    _v_index: number
     _v_key: number | string
     cellItemSize: number
     cellItemTotal: number
@@ -20,7 +21,7 @@ export interface CustomVirtualScrollProps {
     affixDistance?: number; // 内容与滚动容器底部（右边）的偏移
     scrollDistance: number; // 滚动容器的滚动距离 - scrollTop/scrollLeft
     scrollOffset?: number; // 滚动距离需要偏移的距离 - 存在affixDistance的时候
-    useAffixDistance?: boolean; // scrollOffset = affixDistance
+    usePrefixDistance?: boolean; // scrollOffset = affixDistance
     data: MaybeRef<any[]>; // 绑定数据 - 自动构建为 Array<object>
     keyField?: string; // 数据主键
     scrollDirection?: 'y' | 'x';
@@ -56,7 +57,7 @@ export interface CustomVirtualScrollReturn {
     refreshCache: () => void;
     clearVirtualList: () => void;
     forceUpdateVirtualList: () => void;
-    updateVirtualList: (distance: number) => void;
+    updateVirtualList: (distance: number, force: boolean) => void;
     updateTotalPadding: (callback?: Function) => void;
     deleteCellItemByvIndex: (index: number) => void;
     deleteCellItemByIndex: (index: number) => void;
@@ -118,10 +119,24 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
     const lastEndIndex = ref(-1);
     const innerScrollDistance = ref(0);
     const opacity = ref(1);
+    const oldListCounts = ref(0);
 
-    const defaultDynamicRenderSize = computed(() => unref(props).viewCounts + 2 * unref(props).previewCounts);
-    const finalCellSize = computed(() => unref(props).cellItemSize || 0);
+    const finalViewCount = computed(() => {
+        const defaultViewCount = unref(unref(props).viewCounts);
+        const diff = defaultViewCount % unref(finalCellCols);
+        if (diff  === 0) return defaultViewCount;
+        return defaultViewCount + (unref(finalCellCols) - diff);
+    })
+    const finalPreviewCount = computed(() => {
+      const defaultViewCount = unref(unref(props).previewCounts);
+      const diff = defaultViewCount % unref(finalCellCols);
+      if (diff  === 0) return defaultViewCount;
+      return defaultViewCount + (unref(finalCellCols) - diff);
+    })
+    const finalScrollDirection = computed(() => unref(unref(props).scrollDirection) ?? 'y');
     const finalCellCols = computed(() => unref(props).cellCols || 1);
+    const finalCellSize = computed(() => unref(props).cellItemSize || 0);
+    const defaultDynamicRenderSize = computed(() => unref(finalViewCount) + 2 * unref(finalPreviewCount));
     const normalizeData = computed(() => {
         return unref(unref(props).data).map(cellItem => {
             const keyField = unref(props).keyField ?? '';
@@ -155,7 +170,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
     
     const scrollThrottle = throttle(scrollTo, 1000 / frp.value);
 
-    // const vEndIndex = computed<number>(() => Math.min(unref(listCounts), unref(vStartIndex) + unref(unref(props).viewCounts)));
+    // const vEndIndex = computed<number>(() => Math.min(unref(listCounts), unref(vStartIndex) + unref(finalViewCount)));
 
     // const aStartIndex = computed<number>(() => getStartIndex(unref(vStartIndex)));
 
@@ -195,8 +210,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
     function deleteCellItemByIndex(aIndex: number) {
         if (unref(props).cellSizeMode === 'fixed') return;
         const forceRender = aStartIndex.value && aIndex < aStartIndex.value;
-        const id = unref(normalizeData)[aIndex][CellKeyName];
-        const cIndex = startHeightCache.findIndex((cache: CacheItemSize) => cache[CellKeyName] === id);
+        const cIndex = Math.floor(aIndex / unref(finalCellCols));
         startHeightCache.splice(cIndex, 1);
         nextTick(() => {
             updateTotalPadding();
@@ -210,31 +224,29 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
         })
     }
     
-    // 登记数据item缓存尺寸
-    function registerCellItemCacheSize(id: string | number, size: number, total = 0) {
-        const cacheIndex = startHeightCache.findIndex(cache => cache[CellKeyName] === id)
+    // 登记数据item缓存尺寸 - 对应虚拟行索引
+    function registerCellItemCacheSize(index: number, size: number, total = 0) {
+        const rowData = unref(normalizeData)[index];
+        const rowIndex = Math.floor(index / unref(finalCellCols));
         
         const cellItemCache: CacheItemSize = {
-            [CellKeyName]: id,
+            [CellIndexName]: index,
+            [CellKeyName]: rowData[CellKeyName],
             cellItemSize: size,
             cellItemTotal: total
         }
 
-        if (cacheIndex !== -1) {
-            startHeightCache[cacheIndex] = cellItemCache;
-        } else {
-            startHeightCache.push(cellItemCache);
-        }
+        startHeightCache[rowIndex] = cellItemCache;
     }
     
-    // 获取数据item缓存-item尺寸
+    // 获取数据item缓存-item尺寸-实际数据索引
     function getCellItemCacheSize(index: number) {
         if (!unref(listCounts)) return 0;
-        const id = unref(normalizeData)[index][CellKeyName];
+        const rowIndex = Math.floor(index / unref(finalCellCols));
         let cellItemSize = 0;
-        const cacheIndex = startHeightCache.findIndex(cache => cache[CellKeyName] === id)
-        if (cacheIndex !== -1) {
-            cellItemSize = startHeightCache[cacheIndex].cellItemSize;
+        const cache = startHeightCache[rowIndex]
+        if (!!cache) {
+            cellItemSize = cache.cellItemSize;
         } else {
             cellItemSize = finalCellSize.value || virtualCellSize.value;
         }
@@ -242,36 +254,36 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
         return cellItemSize;
     }
     
-    // 获取数据item缓存-展示item的滚动距离
+    // 获取数据item缓存-展示item的滚动距离 index-实际数索索引
     function getCellItemCacheTotal(index: number) {
         if (!unref(listCounts)) return 0;
-        const id = unref(normalizeData)[index][CellKeyName];
+        const rowIndex = Math.floor(index / unref(finalCellCols));
         let total = 0;
-        const cacheIndex = startHeightCache.findIndex(cache => cache[CellKeyName] === id)
-        if (cacheIndex !== -1) {
-            total = startHeightCache[cacheIndex].cellItemTotal;
+        const cache = startHeightCache[rowIndex]
+        if (!!cache) {
+            total = cache.cellItemTotal;
         } else {
             if (unref(props).cellSizeMode === 'fixed') {
-                total = Math.max(0, index - 1) * getCellItemCacheSize(index);
+                total = Math.max(0, rowIndex - 1) * getCellItemCacheSize(0);
             } else if (unref(props).cellSizeMode === 'dynamic') {
                 // 动态高度，每个元素的缓存都在初始化时拥有
-                total = unref(normalizeData).slice(0, index).reduce((currentTotal, cell, cindex) => {
-                    const cellSize = getCellItemCacheSize(cindex);
-                    return currentTotal + cellSize;
-                }, 0);
+                let cTotal = 0;
+                for (let i = 0; i <= index; i+=unref(finalCellCols)) {
+                  cTotal += getCellItemCacheSize(i);
+                }
+                total = cTotal;
             }
         }
         
         return total;
     }
     
-    // 获取数据item尺寸，并进行缓存登记
+    // 获取数据item尺寸，并进行缓存登记 - index实际数索索引
     function getAndRegisterCellItemSize(index: number, lastTotal: number) {
         if (!unref(listCounts)) return 0;
-        
-        const id = unref(normalizeData)[index][CellKeyName];
+
         const cellItemSize = getCellItemCacheSize(index);
-        registerCellItemCacheSize(id, cellItemSize, lastTotal);
+        registerCellItemCacheSize(index, cellItemSize, lastTotal);
         
         return cellItemSize;
     }
@@ -291,17 +303,13 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
         let start = 0;
         
         for (let i = start; i < unref(listCounts); i += unref(finalCellCols)) {
+            sid = i;
             let ctotal = total + getCellItemCacheSize(i);
             if (ctotal <= top) {
-                total = ctotal;
-                sid = i;
+              total = ctotal;
             } else {
-                break;
+              break;
             }
-        }
-    
-        if (total && total === top) {
-            sid += unref(finalCellCols);
         }
     
         vStartIndex.value = sid;
@@ -309,7 +317,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
     }
     
     function updatevEndIndex() {
-        vEndIndex.value = Math.min(unref(listCounts), unref(vStartIndex) + unref(unref(props).viewCounts));
+        vEndIndex.value = Math.min(unref(listCounts), unref(vStartIndex) + unref(finalViewCount));
         updateaEndIndex();
     }
     
@@ -329,13 +337,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
             let cellItemSize = getAndRegisterCellItemSize(i, total);
             total += cellItemSize;
         }
-        if (count + 1 < unref(listCounts)) {
-            // 计算偏差
-            let ind = count + 1;
-            let cellItemSize = getAndRegisterCellItemSize(ind, total);
-            total += cellItemSize;
-        }
-        // return total;
+
         totalPadding.value = total;
         firstRenderFlag.value = true;
         callback && callback();
@@ -343,23 +345,24 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
 
     function updateStartPadding() {
         let total = 0;
-        let start = Math.floor(unref(aStartIndex) / unref(finalCellCols));
+        let start = Math.max(0, unref(aStartIndex));
         
+        // cache 缓存的total是对应索引的前置内容总高度（不包含当前索引内容高度）
         total = getCellItemCacheTotal(start) ?? 0;
         // return total;
-        startPadding.value = total;
+        startPadding.value = total; 
     }
     
     // const scrollToDebounce = debounce(scrollTo, unref(props).debounce);
     // const scrollToThrottle = throttle(scrollTo, unref(props).debounce);
 
-    function updateVirtualList(distance = 0) {
+    function updateVirtualList(distance = 0, forceUpdateList = false) {
         innerScrollDistance.value = distance;
         updatevStartIndex(distance);
         updatevEndIndex();
         // 同步更新其他数据字段
         updateStartPadding();
-        _updateVirtualList();
+        _updateVirtualList(forceUpdateList);
     }
         
     function forceUpdateVirtualList() {
@@ -367,7 +370,8 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
     }
     
     function _updateVirtualList(force = false) {
-        const shouldUpdate = force || (lastStartIndex.value !== aStartIndex.value || lastEndIndex.value !== aEndIndex.value);
+        const shouldUpdate = force || (!virtualList.value.length && !!listCounts.value) || (oldListCounts.value !== listCounts.value)  || (lastStartIndex.value !== aStartIndex.value || lastEndIndex.value !== aEndIndex.value);
+        oldListCounts.value = listCounts.value
         if (shouldUpdate) {
             lastStartIndex.value = aStartIndex.value;
             lastEndIndex.value = aEndIndex.value;
@@ -382,7 +386,8 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
     }
 
     function getStartIndex(startIndex: number) {
-        let _index = Math.min(Math.max(0, startIndex - unref(unref(props).previewCounts)), unref(listCounts));
+        // startIndex - 数据索引
+        let _index = Math.min(Math.max(0, startIndex - unref(finalPreviewCount)), unref(listCounts));
         const diff = _index % unref(finalCellCols);
         if (!diff) {
             _index = Math.max(0, _index - diff);
@@ -391,7 +396,8 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
     }
 
     function getEndIndex(endIndex: number) {
-        let _index = Math.max(0, Math.min(unref(listCounts), endIndex + unref(unref(props).previewCounts)));
+        // endIndex - 数据索引
+        let _index = Math.max(0, Math.min(unref(listCounts), endIndex + unref(finalPreviewCount)));
 
         const diff = _index % unref(finalCellCols);
         if (!diff) {
@@ -420,9 +426,10 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
         }
     }
 
+    // 滚动到指定索引-index实际数据索引
     function scrollToIndex(index: number, callback?: Function) {
         let startIndex = getStartIndex(unref(index));
-        let distance = getCellItemCacheTotal(startIndex) + (unref(props).useAffixDistance ? (unref(props).affixDistance ?? 0) : (unref(props).scrollOffset ?? 0));
+        let distance = getCellItemCacheTotal(startIndex) + (unref(props).usePrefixDistance ? (unref(props).prefixDistance ?? 0) : (unref(props).scrollOffset ?? 0));
 
         scrollTo(distance);
 
@@ -461,9 +468,9 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
                 for (const rect of rects) {
                     const cell = virtualList.value[i];
                     const id = cell[CellKeyName];
-                    const size = unref(props).scrollDirection === 'x'
+                    const size = unref(finalScrollDirection) === 'x'
                         ? rect.width
-                        : unref(props).scrollDirection === 'y'
+                        : unref(finalScrollDirection) === 'y'
                             ? rect.height
                             : 0
         
@@ -507,9 +514,9 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
             const query = uni.createSelectorQuery().in(_instance);
             query.select(`#${cell[CellIndexName]}`).boundingClientRect((res: UniApp.NodeInfo) => {
                 if (res) {
-                    if (unref(props).scrollDirection === 'x') {
+                    if (unref(finalScrollDirection) === 'x') {
                         virtualCellSize.value = res.width;
-                    } else if (unref(props).scrollDirection === 'y') {
+                    } else if (unref(finalScrollDirection) === 'y') {
                         virtualCellSize.value = res.height;
                     }
                     callback && callback();
@@ -520,7 +527,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
         }, unref(props).renderDebounce ?? 50);
     }
     
-    function initVirtualList(distance?: number, callback?: Fuunction) {
+    function initVirtualList(distance?: number, callback?: Function) {
         if (!unref(props).virtual || initRenderFlag.value) return;
 
         if (!unref(listCounts)) {
@@ -536,7 +543,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
             renderDynamicVirtualList(() => {
                 getFinalCellSizeFlag.value = true;
                 updateTotalPadding(() => {
-                    updateVirtualList(distance);
+                    updateVirtualList(distance, true);
                     callback && callback();
                     opacity.value = 1;
                     initRenderFlag.value = false;
@@ -549,7 +556,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
                 renderDefaultVirtualList(() => {
                     getFinalCellSizeFlag.value = true;
                     updateTotalPadding(() => {
-                        updateVirtualList(distance);
+                        updateVirtualList(distance, true);
                         callback && callback();
                         opacity.value = 1;
                         initRenderFlag.value = false;
@@ -558,7 +565,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
                 })
             } else {
                 updateTotalPadding(() => {
-                    updateVirtualList(distance);
+                    updateVirtualList(distance, true);
                     callback && callback();
                     initRenderFlag.value = false;
                     firstRenderedFlag.value = true;
@@ -568,7 +575,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
             // 使用startPadding + totalPadding
             getFinalCellSizeFlag.value = true;
             updateTotalPadding(() => {
-                updateVirtualList(distance);
+                updateVirtualList(distance, true);
                 callback && callback();
                 initRenderFlag.value = false;
                 firstRenderedFlag.value = true;
@@ -582,7 +589,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
         startHeightCache = [] as CacheItemSize[];
     }
     
-    function refresh(distance?: number, callback?: Fuunction) {
+    function refresh(distance?: number, callback?: Function) {
         refreshCache();
         initVirtualList(distance, callback);
     }
