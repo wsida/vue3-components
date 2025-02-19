@@ -1,16 +1,16 @@
 /**
  * wxml节点转canvas绘制
  * 可以生成图片-用于预览/微信分享
- * 
+ *
  */
 /**
  * template
  * <wxml-to-canvas ref="widgetRef" class="wpt-widget"></wxml-to-canvas>
- */ 
+ */
 /**
  * style
  * .wpt-widget { position: absolute; z-index: -1; opacity: 0; right: -100vw; bottom: -100vh }
- */ 
+ */
 
 // example: https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/extended/component-plus/wxml-to-canvas.html
 
@@ -19,112 +19,192 @@
 
 // style 支持absolute/relative、flex、borderRadius、fontSize等
 
-import { onMounted, ref, unref } from 'vue';
+import { onMounted, ref, unref, CssProperties } from "vue";
+// import { loadFontFace } from "../utils/GlobalInfos";
 
-export default function useWxmlToCanvas(wxml = '', style = {}, isNull = false) {
-    let _timeout: ReturnType<typeof setTimeout> = -1;
+export const IMAGE_DOWNLOAD_FAIL_TEMP = /^downloadFile:fail (.*)$/;
+export const IMAGE_DOWNLOAD_DEFAULT_URL = ""; // TODO: 待补充默认图片url地址
+
+export default function useWxmlToCanvas(wxml = "", style = {}, isNull = false) {
+    let _timeout: ReturnType<typeof setTimeout>;
     const defaultWxml = ref(wxml);
     const defaultStyle = ref(style);
-    const renderWxml = ref('');
+    const renderWxml = ref("");
     const renderStyle = ref(null);
-    const tempFilePath = ref(''); // 临时图片地址
+    const tempFilePath = ref(""); // 临时图片地址
     const widgetRef = ref(null); // wxml-to-canvas 节点ref
     const canvasContianer = ref(null); // canvas 容器
     const allowNull = ref(isNull);
-    
+
     onMounted(() => {
-      // do something... example as loadFont
-    })
-    
-    function init(wxml = '', style = {}) {
+        // loadFontFace({
+        //     global: true,
+        //     scopes: ["webview", "native"],
+        //     family: "harmony",
+        //     source: 'url("xxx.ttf")',
+        // });
+    });
+
+    function init(wxml = "", style = {}) {
         setDefaultWxml(wxml);
         setDefaultStyle(style);
-        tempFilePath.value = '';
+        tempFilePath.value = "";
         widgetRef.value = null;
         canvasContianer.value = null;
     }
-    
+
     function setDefaultWxml(wxml: string) {
         defaultWxml.value = wxml;
     }
-    
+
     function setDefaultStyle(style = {}) {
         defaultStyle.value = style;
     }
-    
+
     function setWxml(wxml: string) {
         renderWxml.value = wxml;
     }
-    
+
     function setStyle(style = {}) {
         renderStyle.value = style;
     }
-    
-    function renderCanvas(wxml?: string, style?: any): Promise<any> {
-        const rwxml = unref(wxml || defaultWxml.value);
+
+    /**
+     * wxml模版转canvas
+     * @param wxml 模版
+     * @param style 样式集
+     * @param tryCount 图片下载失败尝试次数
+     * @returns 
+     */
+    function renderCanvas(
+        wxml?: string,
+        style?: Record<string, CssProperties>,
+        tryCount = 0
+    ): Promise<any> {
+        let rwxml = unref(wxml || defaultWxml.value);
         const rstyle = unref(style || defaultStyle.value);
-        if (!widgetRef.value || !rwxml) return allowNull.value ? Promise.resolve('') : Promise.reject(false);
+        if (!widgetRef.value || !rwxml)
+            return allowNull.value
+                ? Promise.resolve("")
+                : Promise.reject(false);
 
         setWxml(rwxml);
         setStyle(rstyle);
-        return new Promise((resolve, reject) => {
-            widgetRef.value.renderToCanvas({ wxml: rwxml, style: rstyle })
+        let hasTry = 0;
+        const tryRenderToCanvas = (resolve, reject) => {
+            widgetRef.value?.ctx?.restore();
+            // widgetRef.value?.ctx?.clearRect(
+            //     0,
+            //     0,
+            //     widgetRef.value?.canvas.width,
+            //     widgetRef.value?.canvas.height
+            // );
+            widgetRef.value
+                .renderToCanvas({ wxml: rwxml, style: rstyle })
                 .then((res: any) => {
-                  canvasContianer.value = res;
-                  resolve(canvasContianer.value);
-                }).catch(() => {
-                    reject(false);
+                    canvasContianer.value = res;
+                    resolve(canvasContianer.value);
                 })
-        })
+                .catch((err: Error) => {
+                    console.error("[render canvas error]: ", err);
+                    // 尝试使用默认图片url
+                    if (
+                        tryCount > 0 &&
+                        hasTry < tryCount &&
+                        err?.message &&
+                        IMAGE_DOWNLOAD_FAIL_TEMP.test(err.message)
+                    ) {
+                        // @ts-ignore
+                        const url = err.message.match(IMAGE_DOWNLOAD_FAIL_TEMP)[1];
+                        if (!url) {
+                            reject(false);
+                        }
+                        rwxml = rwxml.replace(url, IMAGE_DOWNLOAD_DEFAULT_URL);
+                        hasTry += 1;
+                        tryRenderToCanvas(resolve, reject);
+                    } else {
+                        reject(false);
+                    }
+                });
+        };
+        return new Promise((resolve, reject) => {
+          tryRenderToCanvas(resolve, reject)
+        });
     }
-    
-    function generateImageAfterRender(params?: any): Promise<string | boolean> {
-        if (!widgetRef.value || !renderWxml.value) return allowNull.value ? Promise.resolve('') : Promise.reject(false);
+
+    /**
+     * canvas内容转图片
+     * @param params canvas转图片参数
+     * @returns 
+     */
+    function generateImageAfterRender(
+        params?: Record<string, any>
+    ): Promise<string | boolean> {
+        if (!widgetRef.value || !renderWxml.value)
+            return allowNull.value
+                ? Promise.resolve("")
+                : Promise.reject(false);
         return new Promise((resolve, reject) => {
             // {fileType, quality} 支持 文件类型fileType: jpg/png; 图片质量quality，图片的质量目前仅对 jpg 有效
-            widgetRef.value.canvasToTempFilePath(params)
+            widgetRef.value
+                .canvasToTempFilePath(params)
                 .then((res: any) => {
                     tempFilePath.value = res.tempFilePath;
                     resolve(tempFilePath.value);
-                }).catch(() => {
-                    reject(false);
                 })
-        })
+                .catch(() => {
+                    reject(false);
+                });
+        });
     }
-    
-    // 二合一 - 获取分享概览图
-    function generateImage(wxml?: string, style?: any, params?: any, limitTimeout = true): Promise<string | boolean> {
+
+    /**
+     * 二合一 - 获取分享概览图
+     * @param wxml {string} 模版
+     * @param style {object} 样式集
+     * @param params {object} canvas导出图片参数
+     * @param tryCount {number} 图片下载尝试次数
+     * @param limitTimeout {number} 模版转图片时间限制，ms单位
+     * @returns 图片地址
+     */
+    function generateImage(
+        wxml?: string,
+        style?: Record<string, CssProperties>,
+        params?: Record<string, any>,
+        tryCount = 0,
+        limitTimeout = 3000
+    ): Promise<string | boolean> {
         return new Promise((resolve, reject) => {
-            if (limitTimeout) {
+            if (!!limitTimeout) {
                 _timeout = setTimeout(() => {
-                    resolve('');
-                }, 3000);
+                    resolve("");
+                }, limitTimeout);
             }
-            renderCanvas(wxml, style)
+            renderCanvas(wxml, style, tryCount)
                 .then(() => {
                     generateImageAfterRender(params)
-                        .then((imageUrl: unknown) => {
+                        .then((imageUrl: string | boolean) => {
                             if (_timeout) {
                                 clearTimeout(_timeout);
                             }
-                            resolve(imageUrl as string);
+                            resolve(imageUrl);
                         })
                         .catch(() => {
                             if (_timeout) {
                                 clearTimeout(_timeout);
                             }
                             reject(false);
-                        })
+                        });
                 })
                 .catch(() => {
                     if (_timeout) {
                         clearTimeout(_timeout);
                     }
                     reject(false);
-                })
-        })
+                });
+        });
     }
-    
+
     return {
         tempFilePath,
         widgetRef,
@@ -134,6 +214,6 @@ export default function useWxmlToCanvas(wxml = '', style = {}, isNull = false) {
         setDefaultStyle,
         renderCanvas,
         generateImageAfterRender,
-        generateImage
-    }
+        generateImage,
+    };
 }
