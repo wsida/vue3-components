@@ -18,10 +18,10 @@ export interface CustomVirtualScrollProps {
     virtual?: boolean;
     frp?: number;
     prefixDistance?: number; // 内容与滚动容器顶部（左边）的偏移
-    affixDistance?: number; // 内容与滚动容器底部（右边）的偏移
+    affixDistance?: number; // 内容与滚动容器底部（右边）的偏移 - 如果需要滚动居中的话，在列表增加固定大小的内容，可设置affixDistance，使其居中展示
     scrollDistance: number; // 滚动容器的滚动距离 - scrollTop/scrollLeft
     scrollOffset?: number; // 滚动距离需要偏移的距离 - 存在affixDistance的时候
-    usePrefixDistance?: boolean; // scrollOffset = affixDistance
+    useAffixDistance?: boolean; // scrollOffset = affixDistance
     data: MaybeRef<any[]>; // 绑定数据 - 自动构建为 Array<object>
     keyField?: string; // 数据主键
     scrollDirection?: 'y' | 'x';
@@ -53,6 +53,8 @@ export interface CustomVirtualScrollReturn {
     startPadding: Ref<number>;
     endPadding: Ref<number>;
     opacity: Ref<number>;
+    virtualCellSize: Ref<number>;
+    finalCellSize: Ref<number>;
     refresh: (distance?: number) => void;
     refreshCache: () => void;
     clearVirtualList: () => void;
@@ -66,7 +68,7 @@ export interface CustomVirtualScrollReturn {
     scrollTo:  (distance: number) => void;
     scrollToIndex: CustomVirtualScrollIndex;
     scrollThrottle:  (distance: number) => void;
-    initVirtualList: (distance: number) => void;
+    initVirtualList: (distance?: number, callback?: Function) => void;
 }
 
 // 获取当前时间
@@ -134,6 +136,9 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
       return defaultViewCount + (unref(finalCellCols) - diff);
     })
     const finalScrollDirection = computed(() => unref(unref(props).scrollDirection) ?? 'y');
+    const finalPrefixDistance = computed(() => unref(unref(props).prefixDistance) ?? 0);
+    const finalAffixDistance = computed(() => unref(unref(props).affixDistance) ?? 0);
+    const finalScrollOffset = computed(() => unref(unref(props).scrollOffset) ?? 0);
     const finalCellCols = computed(() => unref(props).cellCols || 1);
     const finalCellSize = computed(() => unref(props).cellItemSize || 0);
     const defaultDynamicRenderSize = computed(() => unref(finalViewCount) + 2 * unref(finalPreviewCount));
@@ -297,7 +302,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
 
     // 虚拟列表索引/尺寸计算
     function updatevStartIndex(distance?: number) {
-        const top = Math.max(0, (distance ?? unref(props).scrollDistance) - unref(props).prefixDistance);
+        const top = Math.max(0, (distance ?? unref(props).scrollDistance) - unref(finalPrefixDistance));
         let total = 0;
         let sid = 0;
         let start = 0;
@@ -429,7 +434,7 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
     // 滚动到指定索引-index实际数据索引
     function scrollToIndex(index: number, callback?: Function) {
         let startIndex = getStartIndex(unref(index));
-        let distance = getCellItemCacheTotal(startIndex) + (unref(props).usePrefixDistance ? (unref(props).prefixDistance ?? 0) : (unref(props).scrollOffset ?? 0));
+        let distance = getCellItemCacheTotal(startIndex) + unref(finalPrefixDistance) +  (unref(props).useAffixDistance ? unref(finalAffixDistance) : unref(finalScrollOffset));
 
         scrollTo(distance);
 
@@ -616,8 +621,6 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
         firstRenderedFlag,
         firstRenderFlag,
         getFinalCellSizeFlag,
-        refresh,
-        refreshCache,
         virtualList,
         totalPadding,
         startPadding,
@@ -625,6 +628,10 @@ export default function useVirtualScroll(props: MaybeRef<CustomVirtualScrollProp
         startIndex: aStartIndex,
         endIndex: aEndIndex,
         opacity,
+        virtualCellSize,
+        finalCellSize,
+        refresh,
+        refreshCache,
         forceUpdateVirtualList,
         clearVirtualList,
         updateVirtualList,

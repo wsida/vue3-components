@@ -53,7 +53,7 @@ export default {
             default: 0
         }, // 滚动容器的滚动距离 - scrollTop/scrollLeft
         scrollOffset: Number, // 滚动距离需要偏移的距离 - 存在affixDistance的时候
-        usePrefixDistance: Boolean, // scrollOffset = affixDistance
+        useAffixDistance: Boolean, // scrollOffset = affixDistance
         data: {
             type: Array,
             default: () => ([])
@@ -157,6 +157,15 @@ export default {
           const diff = defaultViewCount % this.finalCellCols;
           if (diff  === 0) return defaultViewCount;
           return defaultViewCount + (this.finalCellCols - diff);
+        },
+        finalPrefixDistance() {
+          return this.prefixDistance ?? 0;
+        },
+        finalAffixDistance() {
+          return this.affixDistance ?? 0;
+        },
+        finalScrollOffset() {
+          return this.scrollOffset ?? 0;
         },
         finalScrollDirection() {
           return this.scrollDirection ?? 'y';
@@ -345,7 +354,7 @@ export default {
 
         // 虚拟列表索引/尺寸计算
         updatevStartIndex(distance?: number) {
-            const top = Math.max(0, (distance ?? this.scrollDistance) - this.prefixDistance);
+            const top = Math.max(0, (distance ?? this.scrollDistance) - this.finalPrefixDistance);
             let total = 0;
             let sid = 0;
             let start = 0;
@@ -486,7 +495,7 @@ export default {
         _scrollToIndex(index: number, callback?: Function) {
             if (!this.virtual) return;
             let startIndex = this.getStartIndex(index);
-            let distance = this.getCellItemCacheTotal(startIndex) + (this.usePrefixDistance ? (this.prefixDistance ?? 0) : (this.scrollOffset ?? 0));
+            let distance = this.getCellItemCacheTotal(startIndex) + this.finalPrefixDistance + (this.useAffixDistance ? this.finalAffixDistance : this.finalScrollOffset);
 
             this._scrollTo(distance)
             this.$nextTick(() => {
