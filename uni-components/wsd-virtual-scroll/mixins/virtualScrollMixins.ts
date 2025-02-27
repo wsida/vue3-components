@@ -171,7 +171,7 @@ export default {
           return this.scrollDirection ?? 'y';
         },
         finalCellSize() {
-            return this.cellItemSize || 0;
+            return this.cellItemSize || this.virtualCellSize || 0;
         },
         finalCellCols() {
             return this.cellCols || 1;
@@ -239,20 +239,62 @@ export default {
         // const aStartIndex = computed<number>(() => getStartIndex(unref(vStartIndex)));
 
         // const aEndIndex = computed<number>(() => getEndIndex(unref(vEndIndex)));
-        
-        // 动态高度专属 - 更新虚拟列表索引item
-        updateCellItemByvIndex(vIndex: number) {
-            if (this.cellSizeMode === 'fixed') return;
+
+        /**
+         * @description cellSizeMode = 'dynamic'时，影响原始数据集的操作，都需要进行对应的节点信息更新。
+         * 下述提供了常见的数据相关操作方法对应的节点信息更新方式
+         * 请在原始数据操作后进行相应调用
+         * start
+         */
+        getCellItemSizeByvIndex(vIndex: number) {
             const aIndex = Math.max(0, this.aStartIndex + vIndex);
-            this.updateCellItemByIndex(aIndex);
+            return this.getCellItemSizeByIndex(aIndex);
+        },
+    
+        getCellItemSizeByIndex(aIndex: number) {
+            if (this.cellSizeMode === "fixed") return this.finalCellSize;
+            return this.getCellItemCacheSize(aIndex);
         },
         
-        // 动态高度专属 - 更新虚拟列表索引item
-        updateCellItemByIndex(aIndex: number) {
+        // 动态高度专属 - 指定虚拟索引添加元素后更新
+        addCellItemByvIndex(vIndex: number, callback?: Function) {
+            if (this.cellSizeMode === "fixed") return;
+            const aIndex = Math.max(0, this.aStartIndex + vIndex);
+            this.addCellItemByIndex(aIndex, callback);
+        },
+    
+        // 动态高度专属 - 指定数据索引添加元素后更新
+        addCellItemByIndex(aIndex: number, callback?: Function) {
+            if (this.cellSizeMode === "fixed") return;
+            // TO: 增量更新-难处理，后续考虑，现在部分更新
+            this.opacity = 0;
+            const len = this.normalizeData.length;
+            this.virtualList = this.normalizeData.slice(aIndex);
+    
+            this.getDynamicVirtualListSize(() => {
+                this.updateTotalPadding();
+                this.updateStartPadding();
+                this._updateVirtualList(true); // 会重新计算totalPadding
+                this.opacity = 1;
+                callback && callback();
+            }, aIndex, len);
+        },
+
+        // 动态高度专属 - 更新指定虚拟索引
+        updateCellItemByvIndex(vIndex: number, callback?: Function) {
+            if (this.cellSizeMode === 'fixed') return;
+            const aIndex = Math.max(0, this.aStartIndex + vIndex);
+            this.updateCellItemByIndex(aIndex, callback);
+        },
+        
+        // 动态高度专属 - 更新指定数据索引
+        updateCellItemByIndex(aIndex: number, callback?: Function) {
             if (this.cellSizeMode === 'fixed') return;
             const forceRender = (this.aStartIndex && aIndex < this.aStartIndex) || (this.aEndIndex && aIndex > this.aEndIndex);
             if (forceRender) {
                 this.virtualList.push(this.normalizeData[aIndex]);
+            } else {
+                this.virtualList.splice(aIndex - this.aStartIndex, 1, this.normalizeData[aIndex]);
             }
             this.getDynamicVirtualListSize(() => {
                 this.updateTotalPadding();
@@ -260,22 +302,23 @@ export default {
                     this.virtualList.pop();
                 }
                 this._updateVirtualList();
+                callback && callback();
             }, aIndex);
         },
         
-        // 动态高度专属 - 删除虚拟列表索引item
-        deleteCellItemByvIndex(vIndex: number) {
+        // 动态高度专属 - 删除指定虚拟索引
+        deleteCellItemByvIndex(vIndex: number, callback?: Function) {
             if (this.cellSizeMode === 'fixed') return;
             const aIndex = Math.max(0, this.aStartIndex + vIndex);
-            this.deleteCellItemByIndex(aIndex);
+            this.deleteCellItemByIndex(aIndex, callback);
         },
 
-        // 动态高度专属 - 删除原始数据索引item
-        deleteCellItemByIndex(aIndex: number) {
+        // 动态高度专属 - 删除指定数据索引
+        deleteCellItemByIndex(aIndex: number, callback?: Function) {
             if (this.cellSizeMode === 'fixed') return;
             const forceRender = this.aStartIndex && aIndex < this.aStartIndex;
-            const cIndex = Math.floor(aIndex / this.finalCellCols);
-            this.startHeightCache.splice(cIndex, 1);
+            const rowIndex = Math.floor(aIndex / this.finalCellCols);
+            this.startHeightCache.splice(rowIndex, 1);
             this.$nextTick(() => {
                 this.updateTotalPadding();
                 if (forceRender) {
@@ -285,12 +328,15 @@ export default {
                 }
                 this.updateaEndIndex();
                 this._updateVirtualList();
+                callback && callback();
             })
         },
+        /**end */
         
         // 登记数据item缓存尺寸 - 对应虚拟行索引
         registerCellItemCacheSize(index: number, size: number, total = 0) {
             const rowData = this.normalizeData[index];
+            if (!rowData) return;
             const rowIndex = Math.floor(index / this.finalCellCols);
             
             const cellItemCache: CacheItemSize = {
@@ -312,7 +358,7 @@ export default {
             if (!!cache) {
                 cellItemSize = cache.cellItemSize;
             } else {
-                cellItemSize = this.finalCellSize || this.virtualCellSize;
+                cellItemSize = this.finalCellSize;
             }
             
             return cellItemSize;
@@ -332,7 +378,7 @@ export default {
                 } else if (this.cellSizeMode === 'dynamic') {
                     // 动态高度，每个元素的缓存都在初始化时拥有
                     let cTotal = 0;
-                    for (let i = 0; i <= index; i+=this.finalCellCols) {
+                    for (let i = 0; i < index; i+=this.finalCellCols) {
                       cTotal += this.getCellItemCacheSize(i);
                     }
                     total = cTotal;
@@ -433,9 +479,11 @@ export default {
                 this.lastEndIndex = this.aEndIndex;
                 this.virtualList = this.normalizeData.slice(this.aStartIndex, this.aEndIndex);
                 if (this.cellSizeMode === 'dynamic') {
+                  setTimeout(() => {
                     this.getDynamicVirtualListSize(() => {
                         this.updateTotalPadding();
                     });
+                  }, this.renderDebounce ?? 50);
                 }
             }
         },
@@ -495,11 +543,13 @@ export default {
         _scrollToIndex(index: number, callback?: Function) {
             if (!this.virtual) return;
             let startIndex = this.getStartIndex(index);
-            let distance = this.getCellItemCacheTotal(startIndex) + this.finalPrefixDistance + (this.useAffixDistance ? this.finalAffixDistance : this.finalScrollOffset);
-
+            let distance = this.getCellItemCacheTotal(index) + this.finalPrefixDistance;
+            let actualDistance = Math.max(0, distance - (this.useAffixDistance ? this.finalAffixDistance : this.finalScrollOffset));
+            
             this._scrollTo(distance)
+
             this.$nextTick(() => {
-                callback && callback(distance);
+                callback && callback(actualDistance, distance);
             });
         },
 
@@ -512,36 +562,43 @@ export default {
           this.virtualList = this.normalizeData.slice(this.aStartIndex, this.aEndIndex);
         },
         
-        // TODO：考虑数据增加/删除/修改 - 需要动态调整尺寸 dynamic 高度才需要考虑
-        getDynamicVirtualListSize(callback?: Function, index = -1) {
+        // 考虑数据增加/删除/修改 - 需要动态调整尺寸 dynamic 高度才需要考虑
+        getDynamicVirtualListSize(callback?: Function, aIndex = -1, eIndex = -1) {
             if (this._vrenderTimeout) {
                 clearTimeout(this._vrenderTimeout);
             }
             this._vrenderTimeout = setTimeout(() => {
-                const dynamicList  = index !== -1 ? [this.normalizeData[index]] : this.virtualList;
+                const dynamicList = aIndex !== -1
+                  ? eIndex !== -1
+                    ? this.normalizeData.slice(aIndex, eIndex)
+                    : [this.normalizeData[aIndex]]
+                  : this.virtualList;
                 const query = uni.createSelectorQuery().in(this);
                 for (const cell of dynamicList) {
                     query.select(`#${cell[CellIndexName]}`).boundingClientRect();
                 }
                 query.exec((rects: UniApp.NodeInfo[]) => {
                     let i = 0;
-                    let total = this.getCellItemCacheTotal(this.aStartIndex);
+                    let startIndex = aIndex !== -1 ? aIndex : this.aStartIndex;
+                    let total = this.getCellItemCacheTotal(startIndex);
                     for (const rect of rects) {
-                        const cell = this.virtualList[i];
-                        const id = cell[CellKeyName];
-                        const size = this.finalScrollDirection === 'x'
-                            ? rect.width
-                            : this.finalScrollDirection === 'y'
-                                ? rect.height
-                                : 0
-            
-                        this.registerCellItemCacheSize(id, size, total);
-                        
-                        total += size;
+                        if (rect) {
+                          const index = startIndex + i;
+                          const size = this.finalScrollDirection === 'x'
+                              ? rect.width
+                              : this.finalScrollDirection === 'y'
+                                  ? rect.height
+                                  : 0
+              
+                          this.registerCellItemCacheSize(index, size, total);
+                          
+                          total += size;
+                        }
+                        i+=1;
                     }
                     callback && callback();
                 })
-            }, this.renderDebounce);
+            }, this.renderDebounce ?? 50);
         },
 
         renderDynamicVirtualList(callback?: Function) {
