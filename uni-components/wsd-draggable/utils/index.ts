@@ -76,3 +76,46 @@ export function swapArrayElements(
     arr[index2] = temp;
     return arr;
 }
+
+/**
+ * 数组索引元素移动指定距离
+ * @param arr
+ * @param index 指定索引
+ * @param n 移动距离
+ * @param direction 方向；r-right；l-left
+ * @param isCircular 循环
+ * @returns
+ */
+export function moveElementInArray(
+    arr: Array<unknown>,
+    index: number,
+    n = 1,
+    direction = 'r',
+    isCircular = true
+) {
+    const length = arr.length;
+    if (index < 0 || index >= length) {
+        return arr;
+    }
+
+    let newIndex: number;
+    if (direction === 'r') {
+        if (isCircular) {
+            newIndex = (index + n) % length;
+        } else {
+            newIndex = Math.min(index + n, length - 1);
+        }
+    } else if (direction === 'l') {
+        if (isCircular) {
+            newIndex = (index - n + length) % length;
+        } else {
+            newIndex = Math.max(index - n, 0);
+        }
+    } else {
+        return arr;
+    }
+
+    const element = arr.splice(index, 1)[0];
+    arr.splice(newIndex, 0, element);
+    return arr;
+}
