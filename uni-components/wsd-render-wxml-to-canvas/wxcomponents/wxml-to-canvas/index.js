@@ -167,7 +167,7 @@ const {Widget} = __webpack_require__(3)
 const {Draw} = __webpack_require__(5)
 const {compareVersion} = __webpack_require__(0)
 
-const canvasId = 'weui-canvas'
+const canvasId = 'wpt-weui-canvas';
 
 Component({
   properties: {
@@ -178,10 +178,15 @@ Component({
     height: {
       type: Number,
       value: 300
+    },
+    cid: {
+      type: String,
+      value: '0'
     }
   },
   data: {
     use2dCanvas: false, // 2.9.2 后可用canvas 2d 接口
+    canvasId: `${canvasId}`
   },
   lifetimes: {
     attached() {
@@ -193,6 +198,7 @@ Component({
       this.setData({use2dCanvas}, () => {
         if (use2dCanvas) {
           const query = this.createSelectorQuery()
+          const canvasId = `${this.data.canvasId}-${this.data.cid}`
           query.select(`#${canvasId}`)
             .fields({node: true, size: true})
             .exec(res => {
@@ -257,14 +263,15 @@ Component({
           top, left, width, height
         } = this.boundary
 
+        const canvasId = `${this.data.canvasId}-${this.data.cid}`
         const copyArgs = {
           x: left,
           y: top,
           width,
           height,
+          canvasId,
           destWidth: width * this.dpr,
           destHeight: height * this.dpr,
-          canvasId,
           fileType: args.fileType || 'png',
           quality: args.quality || 1,
           success: resolve,

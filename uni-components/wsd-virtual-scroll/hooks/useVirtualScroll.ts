@@ -733,6 +733,7 @@ export default function useVirtualScroll(
 
   function refreshCache() {
       getFinalCellSizeFlag.value = false;
+      virtualCellSize.value = 0;
       firstRenderFlag.value = false;
       startHeightCache = [] as CacheItemSize[];
   }

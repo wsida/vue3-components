@@ -685,6 +685,7 @@ export default {
         
         _refreshCache() {
             this._vgetFinalCellSizeFlag = false;
+            this.virtualCellSize = 0;
             this._vfirstRenderFlag = false;
             this.startHeightCache = [] as CacheItemSize[];
         },
