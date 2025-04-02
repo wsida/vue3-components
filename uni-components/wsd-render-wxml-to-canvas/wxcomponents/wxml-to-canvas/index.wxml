@@ -1,2 +1,0 @@
-<canvas wx:if="{{use2dCanvas}}" id="{{canvasId}}-{{cid}}" type="2d" style="width: {{width}}px; height: {{height}}px;"></canvas>
-<canvas wx:else canvas-id="{{canvasId}}-{{cid}}" style="width: {{width}}px; height: {{height}}px;"></canvas>
